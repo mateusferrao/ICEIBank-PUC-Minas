@@ -1,7 +1,7 @@
-"""Tabela de rotas (espelha o routes.js do roteiro).
+"""Tabela de rotas (igual ao routes.js do roteiro).
 
-Mantém as rotas separadas dos controllers: aqui só o mapeamento
-caminho -> handler; a lógica vive em controllers/.
+Deixo as rotas separadas dos controllers. Aqui fica só o mapa de caminho para o
+handler, e a lógica fica em controllers/.
 """
 from fastapi import FastAPI, Request
 
@@ -9,7 +9,7 @@ from .controllers import auth_controller, contas_controller, transferencias_cont
 
 
 async def health(request: Request) -> dict:
-    """Status da agência: relógio de Lamport atual e nº de contas."""
+    """Status da agência: valor atual do relógio de Lamport e quantidade de contas."""
     estado = request.app.state
     return {
         "agencia": estado.id_agencia,

@@ -6,11 +6,11 @@ Três regras:
 3. Ao receber uma mensagem com timestamp t, ajusta o contador para
    max(contador_local, t) + 1.
 
-Um `Lock` protege as três operações. Neste projeto os endpoints são `async` e
-rodam em um único event loop (sem preempção), então o contador já estaria
-seguro; o lock é defesa em profundidade caso a agência passe a rodar com várias
-threads/workers no futuro — o mesmo cuidado que o roteiro descreve para Java
-(`synchronized`) e Flask (`threading.Lock`).
+Um Lock protege as três operações. Neste projeto os endpoints são `async` e rodam
+num único event loop, então o contador já estaria seguro. Deixo o lock como
+garantia caso um dia a agência rode com várias threads ou workers. É o mesmo
+cuidado que o roteiro pede para Java (`synchronized`) e para o Flask
+(`threading.Lock`).
 """
 import threading
 

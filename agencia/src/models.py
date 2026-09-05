@@ -1,9 +1,9 @@
-"""Schemas de entrada/saída (Pydantic) e conversão de dinheiro.
+"""Schemas de entrada e saída (Pydantic) e a conversão de dinheiro.
 
-Decisão de projeto: a API fala em **reais** (compatível com os exemplos do
-roteiro, ex.: {"valor": 25}), mas todo armazenamento e aritmética internos usam
-**centavos (int)**. Assim evitamos os erros de ponto flutuante clássicos de
-domínio bancário (0.1 + 0.2), sem quebrar a interface esperada pelo roteiro.
+A API fala em reais, do mesmo jeito que os exemplos do roteiro ({"valor": 25}),
+mas por dentro tudo é guardado e somado em centavos (inteiro). Assim eu evito o
+erro clássico de ponto flutuante em banco (0.1 + 0.2) sem mudar a interface que o
+roteiro espera.
 """
 from decimal import ROUND_HALF_UP, Decimal
 

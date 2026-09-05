@@ -1,12 +1,12 @@
 """Registro de eventos em arquivo .jsonl (Parte B).
 
-Cada agência grava todo evento em uma linha JSON (`eventos-<agencia>.jsonl`).
-Esses arquivos são a matéria-prima da linha do tempo unificada (mesclar_logs.py).
+Cada agência grava cada evento numa linha JSON (`eventos-<agencia>.jsonl`). Esses
+arquivos são a base da linha do tempo unificada (mesclar_logs.py).
 
-Cada evento guarda dois carimbos de tempo:
-- timestampLamport: o relógio lógico (usado para ordenar a linha do tempo);
-- horaParede: o relógio físico da máquina, apenas para comparação — nunca é
-  usado para nenhuma decisão do sistema.
+Cada evento guarda dois tempos:
+- timestampLamport: o relógio lógico, usado para ordenar a linha do tempo;
+- horaParede: o relógio físico da máquina, só para comparação. Ele nunca é usado
+  para nenhuma decisão do sistema.
 """
 import json
 import os

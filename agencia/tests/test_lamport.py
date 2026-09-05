@@ -1,4 +1,4 @@
-"""F2 — Relógio de Lamport (testado isoladamente, antes de plugar na API)."""
+"""F2: relógio de Lamport, testado sozinho antes de ligar na API."""
 from src.services.lamport import RelogioLamport
 
 

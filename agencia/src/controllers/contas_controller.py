@@ -1,12 +1,12 @@
 """Controller de contas (Parte C): criar, consultar, depositar, sacar.
 
-Cada operação que altera o estado é carimbada com um timestamp do relógio de
-Lamport e registrada no event log. As contas ficam em memória (ContaRepository
-guardado em app.state).
+Toda operação que muda o estado ganha um timestamp do relógio de Lamport e é
+gravada no event log. As contas ficam em memória (no ContaRepository dentro do
+app.state).
 
-Os endpoints são `async def` de propósito: assim rodam no event loop único do
-Uvicorn (sem threadpool), e como não há `await` entre ler e escrever o saldo,
-cada mutação de conta é atômica em relação às outras requisições.
+Deixei os endpoints como `async def` de propósito. Assim eles rodam no event loop
+único do Uvicorn, sem threadpool, e como não tem `await` entre ler e escrever o
+saldo, uma operação numa conta não é interrompida por outra requisição.
 """
 from fastapi import HTTPException, Request
 
@@ -16,7 +16,7 @@ from ..security import UsuarioAutenticado, garantir_posse
 
 
 def conta_para_resposta(conta: dict) -> dict:
-    """Projeção pública da conta: saldo em reais, sem detalhes internos."""
+    """Monta a versão pública da conta: saldo em reais, sem os campos internos."""
     resposta = {
         "id": conta["id"],
         "nomeAluno": conta.get("nomeAluno"),
@@ -38,7 +38,7 @@ async def criar_conta(request: Request, body: CriarContaIn, usuario: UsuarioAute
         raise HTTPException(status_code=409, detail="Conta já existe.")
 
     ts = estado.relogio.evento_local()
-    # O dono é sempre o usuário autenticado: cada um cria contas apenas para si.
+    # O dono é sempre o usuário logado, cada um só cria conta para si mesmo.
     conta = {
         "id": body.id,
         "nomeAluno": body.nomeAluno or config.USUARIOS.get(usuario, {}).get("nome", usuario),
@@ -53,10 +53,10 @@ async def criar_conta(request: Request, body: CriarContaIn, usuario: UsuarioAute
 
 
 async def extrato(request: Request, id: int, usuario: UsuarioAutenticado) -> dict:
-    """Histórico de eventos registrados para uma conta específica (nesta agência).
+    """Histórico dos eventos de uma conta (nesta agência).
 
-    Endpoint de leitura de conveniência para o frontend. Reaproveita o event log
-    já gravado, filtrando os eventos que referenciam esta conta.
+    É um endpoint só de leitura, para o frontend. Ele reaproveita o event log que
+    já está gravado e filtra os eventos que citam essa conta.
     """
     estado = request.app.state
     conta = estado.contas.obter(id)

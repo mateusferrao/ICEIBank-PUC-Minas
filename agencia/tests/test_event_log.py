@@ -1,4 +1,4 @@
-"""F2 — Registro de eventos em .jsonl."""
+"""F2: registro de eventos em .jsonl."""
 import json
 
 from src.services.event_log import RegistroEventos

@@ -1,8 +1,8 @@
-"""F4 — Transferências: local, entre agências e a falha conhecida.
+"""F4: transferências local, entre agências e a falha conhecida.
 
-A chamada entre agências é testada in-process: o cliente HTTP da origem é
-substituído por um httpx.AsyncClient com ASGITransport apontando para o app da
-agência de destino — sem subir servidor de rede real.
+A chamada entre agências é testada dentro do próprio processo. Troco o cliente HTTP
+da origem por um httpx.AsyncClient com ASGITransport apontando para o app da
+agência de destino, sem precisar subir um servidor de rede de verdade.
 """
 import httpx
 import pytest

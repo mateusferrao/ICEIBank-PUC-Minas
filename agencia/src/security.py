@@ -1,10 +1,10 @@
 """Dependências de segurança do FastAPI (Parte F).
 
-- get_current_user: exige um token de USUÁRIO válido; devolve o username.
-- require_service_token: exige um token de SERVIÇO válido (chamada entre agências).
-- garantir_posse: autorização — a operação só é permitida ao dono da conta.
+- get_current_user: exige um token de usuário válido e devolve o username.
+- require_service_token: exige um token de serviço válido (chamada entre agências).
+- garantir_posse: é a autorização, a operação só vale para o dono da conta.
 
-Qualquer token ausente, inválido ou expirado resulta em HTTP 401.
+Token faltando, inválido ou expirado sempre resulta em HTTP 401.
 """
 from typing import Annotated
 
@@ -13,7 +13,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from .services import auth_service
 
-# auto_error=False para nós mesmos retornarmos 401 (o padrão do HTTPBearer é 403
+# Uso auto_error=False para eu mesmo retornar 401 (o padrão do HTTPBearer é 403
 # quando o cabeçalho falta).
 _bearer = HTTPBearer(auto_error=False)
 

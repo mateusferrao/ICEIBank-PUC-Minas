@@ -1,4 +1,4 @@
-"""F7 — Idempotência de transferências (funcionalidade adicional)."""
+"""F7: idempotência de transferências (funcionalidade adicional)."""
 import httpx
 
 from src.services import auth_service

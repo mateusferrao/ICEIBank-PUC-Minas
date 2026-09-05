@@ -1,4 +1,4 @@
-"""F1 — Particionamento de contas entre 3 agências."""
+"""F1: particionamento de contas entre 3 agências."""
 from src.config import NUMERO_AGENCIAS, agencia_responsavel
 
 

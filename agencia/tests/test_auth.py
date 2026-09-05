@@ -1,4 +1,4 @@
-"""F6 — Autenticação JWT e autorização de posse."""
+"""F6: autenticação JWT e autorização de posse."""
 from src.services import auth_service
 
 

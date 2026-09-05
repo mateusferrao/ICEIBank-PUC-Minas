@@ -1,17 +1,17 @@
-"""Store de idempotência de transferências (funcionalidade adicional).
+"""Guarda o estado das transferências por chave de idempotência (funcionalidade
+adicional).
 
-Guarda, por chave de idempotência (fornecida pelo cliente), o estado de uma
-transferência. Cada agência tem o seu store em memória:
-- na agência de ORIGEM, evita aplicar o débito duas vezes se a mesma requisição
-  for reenviada;
-- na agência de DESTINO, evita aplicar o crédito remoto duas vezes se a chamada
-  entre agências for repetida (retry de rede).
+A chave vem do cliente. Cada agência tem o seu registro em memória:
+- na agência de origem, evita aplicar o débito duas vezes se a requisição for
+  reenviada;
+- na agência de destino, evita aplicar o crédito remoto duas vezes se a chamada
+  entre agências for repetida por causa de um retry de rede.
 
 Estados possíveis:
-- EM_ANDAMENTO: a operação está sendo processada (duplicata concorrente -> 409).
-- CONCLUIDA: terminou com sucesso; um replay devolve a resposta guardada.
-- FALHOU: a perna de crédito remoto falhou (a "falha conhecida"); um replay não
-  redebita, apenas retenta o crédito.
+- EM_ANDAMENTO: a operação está sendo processada (uma cópia concorrente recebe 409).
+- CONCLUIDA: terminou bem, e um reenvio devolve a resposta guardada.
+- FALHOU: o crédito remoto falhou (a falha conhecida). Um reenvio não debita de
+  novo, só tenta o crédito outra vez.
 """
 
 

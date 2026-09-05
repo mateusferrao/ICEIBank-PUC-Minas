@@ -1,4 +1,4 @@
-"""F5 — Linha do tempo unificada ordenada por Lamport."""
+"""F5: linha do tempo unificada, ordenada por Lamport."""
 import json
 import sys
 import os

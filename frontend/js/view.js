@@ -1,4 +1,4 @@
-// View (MVC): tudo que toca o DOM — mostrar telas, mensagens e resultados.
+// View (MVC): tudo que mexe no DOM, como mostrar telas, mensagens e resultados.
 // Não conhece a API nem as regras; só recebe dados e renderiza.
 const View = {
   el(id) {
@@ -36,7 +36,7 @@ const View = {
 
   mostrarSaldo(conta) {
     this.el("resultado-saldo").innerHTML =
-      `Conta <strong>${conta.id}</strong> (dono: ${conta.dono || "-"}) — ` +
+      `Conta <strong>${conta.id}</strong> (dono: ${conta.dono || "-"}), ` +
       `saldo: <strong>${this.formatarReais(conta.saldo)}</strong>`;
   },
 

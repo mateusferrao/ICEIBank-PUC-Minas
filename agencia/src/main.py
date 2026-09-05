@@ -38,8 +38,8 @@ def criar_app(id_agencia: int | None = None) -> FastAPI:
 
     app = FastAPI(title=f"ICEIBank - Agência {id_agencia}", lifespan=lifespan)
 
-    # Frontend estático é servido de outra origem/porta -> CORS é necessário
-    # para o navegador conseguir chamar a API.
+    # O frontend é servido de outra porta, então preciso do CORS para o navegador
+    # conseguir chamar a API.
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -53,8 +53,8 @@ def criar_app(id_agencia: int | None = None) -> FastAPI:
     app.state.registro = RegistroEventos(f"agencia-{id_agencia}")
     app.state.contas = ContaRepository()
     app.state.idempotencia = Idempotencia()
-    # Factory de cliente HTTP para as chamadas entre agências. Injetada aqui
-    # para que os testes possam substituí-la por um cliente in-process.
+    # Função que cria o cliente HTTP das chamadas entre agências. Fica aqui para os
+    # testes conseguirem trocar por um cliente que roda no próprio processo.
     app.state.criar_http_client = httpx.AsyncClient
 
     registrar_rotas(app)

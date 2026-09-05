@@ -1,17 +1,17 @@
-"""Controller de transferências (Parte D) + idempotência (funcionalidade
+"""Controller de transferências (Parte D) e idempotência (funcionalidade
 adicional).
 
-Transferência local vs. entre agências, a limitação conhecida (débito não
-revertido sob falha) e a idempotência ponta a ponta:
+Aqui ficam a transferência local, a transferência entre agências, a falha conhecida
+(o débito não é estornado quando dá erro) e a idempotência dos dois lados:
 
-- O cliente envia um cabeçalho `Idempotency-Key` único por operação.
-- Na ORIGEM, a chave garante que um reenvio não aplique um segundo débito.
-- A chave é propagada à agência de DESTINO (creditar-remoto), que a usa para não
-  aplicar um segundo crédito — tornando seguro o retry de rede ponta a ponta.
+- o cliente manda um cabeçalho `Idempotency-Key` único por operação;
+- na origem, a chave garante que um reenvio não aplique um segundo débito;
+- a chave vai junto para a agência de destino (creditar-remoto), que a usa para
+  não aplicar um segundo crédito. Assim o retry de rede fica seguro dos dois lados.
 
-Contrato: para uma mesma chave, a transferência é aplicada NO MÁXIMO uma vez.
-Isso não resolve a atomicidade da falha conhecida (o débito segue sem rollback
-automático — isso é o Sprint 4); apenas impede duplicação.
+A regra é: para a mesma chave, a transferência acontece no máximo uma vez. Isso não
+resolve a atomicidade da falha conhecida (o débito continua sem estorno automático,
+o que é assunto da Sprint 4), só impede a duplicação.
 """
 from typing import Annotated
 
@@ -57,7 +57,7 @@ async def transferir(
     estado = request.app.state
     store: Idempotencia = estado.idempotencia
 
-    # --- Replay de uma chave já vista -------------------------------------
+    # Reenvio de uma chave que já foi vista
     if idempotency_key:
         registro = store.obter(idempotency_key)
         if registro is not None:
@@ -70,7 +70,7 @@ async def transferir(
                 )
                 return registro["resposta"]
             if registro["status"] == Idempotencia.FALHOU:
-                # Recuperação: NÃO redebita; apenas retenta o crédito remoto.
+                # Recuperação: não debita de novo, só tenta o crédito remoto outra vez.
                 ctx = registro["contexto"]
                 ts_envio = estado.relogio.ao_enviar()
                 ok, erro = await _creditar_remoto_em(estado, ctx["idDestino"], ctx["valor"], ts_envio, idempotency_key)
@@ -84,7 +84,7 @@ async def transferir(
                 )
                 raise HTTPException(status_code=502, detail="Falha ao contatar agência de destino (retry).")
 
-    # --- Validação (deterministas; não precisam de cache) -----------------
+    # Validações. Elas dão sempre o mesmo resultado, então não precisam ser guardadas.
     origem = estado.contas.obter(body.idOrigem)
     if origem is None:
         raise HTTPException(status_code=404, detail="Conta de origem não encontrada nesta agência.")
@@ -98,7 +98,7 @@ async def transferir(
     if idempotency_key:
         store.marcar_em_andamento(idempotency_key)
 
-    # --- Débito local (sempre) --------------------------------------------
+    # Débito local (acontece sempre)
     ts_debito = estado.relogio.evento_local()
     origem["saldo_centavos"] -= valor_centavos
     estado.registro.registrar(
@@ -106,13 +106,13 @@ async def transferir(
         {"idOrigem": body.idOrigem, "idDestino": body.idDestino, "valor": body.valor},
     )
 
-    # --- Crédito -----------------------------------------------------------
+    # Crédito
     if agencia_destino == estado.id_agencia:
         destino = estado.contas.obter(body.idDestino)
         if destino is None:
-            origem["saldo_centavos"] += valor_centavos  # reverte o débito local
+            origem["saldo_centavos"] += valor_centavos  # desfaz o débito local
             if idempotency_key:
-                store.remover(idempotency_key)  # nada aconteceu -> permite tentar de novo
+                store.remover(idempotency_key)  # como nada aconteceu, deixa tentar de novo
             raise HTTPException(status_code=404, detail="Conta de destino não encontrada.")
         ts_credito = estado.relogio.evento_local()
         destino["saldo_centavos"] += valor_centavos
@@ -134,7 +134,7 @@ async def transferir(
             store.concluir(idempotency_key, resposta)
         return resposta
 
-    # LIMITAÇÃO CONHECIDA: débito já aplicado NÃO é revertido.
+    # Falha conhecida: o débito já foi aplicado e não é estornado.
     estado.registro.registrar(
         "TRANSFERENCIA_FALHOU", estado.relogio.evento_local(),
         {"idOrigem": body.idOrigem, "idDestino": body.idDestino, "valor": body.valor, "erro": erro},
@@ -157,13 +157,13 @@ async def creditar_remoto(
     estado = request.app.state
     store: Idempotencia = estado.idempotencia
 
-    # Dedup no destino: se esta chave já foi creditada, não credita de novo.
+    # Checagem no destino: se essa chave já foi creditada, não credita de novo.
     if idempotency_key:
         registro = store.obter(idempotency_key)
         if registro is not None and registro["status"] == Idempotencia.CONCLUIDA:
             return registro["resposta"]
 
-    # Ao RECEBER, ajusta o relógio de Lamport (regra 3).
+    # Ao receber, ajusta o relógio de Lamport (regra 3).
     ts = estado.relogio.ao_receber(body.timestampLamport)
 
     conta = estado.contas.obter(id)

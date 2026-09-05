@@ -1,4 +1,4 @@
-"""F3 — API de contas: criar, consultar, depositar, sacar (sem auth ainda)."""
+"""F3: API de contas (criar, consultar, depositar, sacar), ainda sem auth."""
 
 
 def test_criar_conta_na_agencia_certa(cliente):

@@ -1,5 +1,5 @@
 // Controller (MVC): liga os eventos da View às chamadas da Api e atualiza o
-// Model. É a "cola" — a View não fala com a Api diretamente.
+// Model. Ele é a cola entre as partes, e a View nunca fala direto com a Api.
 const Controller = {
   iniciar() {
     // Restaura a sessão (se houver token guardado) ao abrir a página.
@@ -152,8 +152,8 @@ const Controller = {
     const idDestino = parseInt(View.el("transf-destino").value, 10);
     const valor = parseFloat(View.el("transf-valor").value);
     try {
-      // O frontend NÃO precisa saber se é local ou entre agências — o backend
-      // resolve; a mensagem retornada deixa claro qual foi.
+      // O frontend não precisa saber se é local ou entre agências, quem resolve é
+      // o backend. A mensagem que volta deixa claro qual dos dois foi.
       const resultado = await Api.transferir(idOrigem, idDestino, valor);
       View.mensagem("msg-transferencia", resultado.mensagem, "sucesso");
     } catch (erro) {

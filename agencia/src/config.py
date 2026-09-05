@@ -1,9 +1,9 @@
 """Configuração da agência: particionamento de contas, portas e autenticação.
 
-Todas as agências compartilham este mesmo arquivo (o mesmo código roda 3 vezes,
-identificado pela variável de ambiente AGENCIA_ID). Por isso o segredo do JWT e o
-diretório de usuários (seed) precisam ser idênticos nas três — só assim um
-usuário consegue autenticar em qualquer agência usada como porta de entrada.
+As 3 agências usam este mesmo arquivo (o mesmo código roda 3 vezes, identificado
+pela variável de ambiente AGENCIA_ID). Por isso o segredo do JWT e a lista de
+usuários precisam ser iguais nas três. Só assim um usuário consegue logar em
+qualquer agência que ele use como porta de entrada.
 """
 import os
 
@@ -19,8 +19,8 @@ PORTA_BASE = 4000 + OFFSET
 
 
 def _host(id_agencia: int) -> str:
-    # Permite que cada agência seja alcançada por um host diferente (ex.: em
-    # containers, pelo nome do serviço). Fora do Docker, o padrão é localhost.
+    # Deixa cada agência ser alcançada por um host diferente (por exemplo, dentro
+    # de containers, pelo nome do serviço). Fora do Docker o padrão é localhost.
     return os.environ.get(f"AGENCIA_{id_agencia}_HOST", "localhost")
 
 
@@ -47,24 +47,24 @@ def url_agencia(id_agencia: int) -> str:
 # ---------------------------------------------------------------------------
 
 # Segredo compartilhado entre as 3 agências. Em produção viria de um cofre de
-# segredos; aqui aceita override por variável de ambiente e tem um fallback de
+# segredos. Aqui dá para trocar por variável de ambiente, e tem um valor padrão de
 # desenvolvimento para o projeto rodar sem configuração extra.
 JWT_SECRET = os.environ.get("JWT_SECRET", "iceibank-sprint1-segredo-compartilhado")
 JWT_ALGORITMO = "HS256"
 
-# Expiração do token de usuário (minutos) e do token de serviço (segundos, curto
-# pois é gerado por chamada entre agências).
+# Expiração do token de usuário (em minutos) e do token de serviço (em segundos,
+# curto porque ele é gerado a cada chamada entre agências).
 TOKEN_USUARIO_MINUTOS = int(os.environ.get("TOKEN_USUARIO_MINUTOS", "30"))
 TOKEN_SERVICO_SEGUNDOS = int(os.environ.get("TOKEN_SERVICO_SEGUNDOS", "60"))
 
-# Argon2id como único algoritmo de hash de senha (recomendação atual do
-# FastAPI/pwdlib: resistente a ataques com GPU). Usado explicitamente, sem
-# bcrypt, já que este projeto nunca gera hashes legados.
+# Uso Argon2id como único algoritmo de hash de senha (é o que o FastAPI/pwdlib
+# recomenda hoje, resistente a ataque com GPU). Coloco ele direto, sem bcrypt,
+# porque o projeto nunca gera hash antigo.
 _hasher = PasswordHash((Argon2Hasher(),))
 
-# Diretório de usuários (seed fixo, igual nas 3 agências). As senhas ficam apenas
-# como hash — nunca em texto puro. Estes usuários são os "donos" das contas; o
-# vínculo conta<->dono é o que habilita a autorização de posse.
+# Lista de usuários fixa, igual nas 3 agências. As senhas ficam só como hash,
+# nunca em texto puro. Esses usuários são os donos das contas, e é o vínculo
+# conta/dono que permite a autorização por posse.
 USUARIOS = {
     "ana": {"nome": "Ana", "senha_hash": _hasher.hash("senha-ana")},
     "bruno": {"nome": "Bruno", "senha_hash": _hasher.hash("senha-bruno")},

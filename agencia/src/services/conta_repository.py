@@ -1,13 +1,13 @@
 """Repositório de contas em memória.
 
-O roteiro pede explicitamente contas em memória neste sprint (sem banco de
-dados) — se o processo reiniciar, as contas somem, e isso é esperado. Mesmo
-assim, mantemos uma abstração fina de repositório: a lógica dos controllers não
-conhece a estrutura de armazenamento, então trocar por um banco de verdade no
-Sprint 4 não exige reescrever as regras de negócio.
+O roteiro pede contas em memória nesta sprint, sem banco de dados. Se o processo
+reiniciar, as contas somem, e isso é esperado. Mesmo assim deixei um repositório
+bem simples no meio: os controllers não sabem como as contas são guardadas, então
+se na Sprint 4 eu trocar por um banco de verdade não preciso reescrever as regras
+de negócio.
 
-Uma conta é um dict: {"id", "nomeAluno", "dono", "saldo_centavos"}.
-O campo "dono" só passa a ser preenchido a partir da Parte F (autenticação).
+Uma conta é um dict: {"id", "nomeAluno", "dono", "saldo_centavos"}. O campo "dono"
+só começa a ser preenchido na Parte F (autenticação).
 """
 
 

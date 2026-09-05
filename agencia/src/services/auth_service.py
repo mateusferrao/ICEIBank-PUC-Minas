@@ -1,12 +1,12 @@
-"""Emissão e validação de tokens JWT (Parte F).
+"""Emite e valida os tokens JWT (Parte F).
 
-Dois tipos de token, ambos assinados com o mesmo segredo compartilhado:
-- "usuario": identifica uma pessoa autenticada (claim `sub` = username). Usado
-  pelas requisições vindas do frontend.
+São dois tipos de token, os dois assinados com o mesmo segredo:
+- "usuario": identifica uma pessoa logada (o campo `sub` é o username). É o que as
+  requisições do frontend usam.
 - "svc" (serviço): identifica uma agência falando com outra na chamada interna
-  creditar-remoto. Separar a identidade de serviço da identidade de usuário deixa
-  claro que o crédito remoto é uma confiança sistema-a-sistema, não uma ação de
-  um usuário específico.
+  creditar-remoto. Separar a identidade de serviço da identidade do usuário deixa
+  claro que o crédito remoto é uma confiança entre sistemas, e não uma ação de um
+  usuário específico.
 """
 from datetime import datetime, timedelta, timezone
 
@@ -42,7 +42,8 @@ def emitir_token_servico(id_agencia: int) -> str:
 
 
 def decodificar_token(token: str) -> dict | None:
-    """Devolve o payload se o token for válido; None se inválido ou expirado."""
+    """Devolve o conteúdo do token se ele for válido, ou None se for inválido ou
+    estiver expirado."""
     try:
         return jwt.decode(token, config.JWT_SECRET, algorithms=[config.JWT_ALGORITMO])
     except jwt.PyJWTError:
