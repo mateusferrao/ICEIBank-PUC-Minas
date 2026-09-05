@@ -20,6 +20,7 @@ from . import config
 from .routes import registrar_rotas
 from .services.conta_repository import ContaRepository
 from .services.event_log import RegistroEventos
+from .services.idempotencia import Idempotencia
 from .services.lamport import RelogioLamport
 
 
@@ -51,6 +52,7 @@ def criar_app(id_agencia: int | None = None) -> FastAPI:
     app.state.relogio = RelogioLamport()
     app.state.registro = RegistroEventos(f"agencia-{id_agencia}")
     app.state.contas = ContaRepository()
+    app.state.idempotencia = Idempotencia()
     # Factory de cliente HTTP para as chamadas entre agências. Injetada aqui
     # para que os testes possam substituí-la por um cliente in-process.
     app.state.criar_http_client = httpx.AsyncClient
