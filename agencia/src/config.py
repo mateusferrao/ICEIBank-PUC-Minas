@@ -8,7 +8,6 @@ usuário consegue autenticar em qualquer agência usada como porta de entrada.
 import os
 
 from pwdlib import PasswordHash
-from pwdlib.hashers.bcrypt import BcryptHasher
 
 # TODO: substitua pelo seu OFFSET pessoal (dois últimos dígitos da matrícula/RA),
 # necessário apenas se for rodar em uma máquina compartilhada do laboratório.
@@ -52,10 +51,10 @@ JWT_ALGORITMO = "HS256"
 TOKEN_USUARIO_MINUTOS = int(os.environ.get("TOKEN_USUARIO_MINUTOS", "30"))
 TOKEN_SERVICO_SEGUNDOS = int(os.environ.get("TOKEN_SERVICO_SEGUNDOS", "60"))
 
-# Usa bcrypt explicitamente (algoritmo maduro e amplamente usado). Poderia ser
-# Argon2 via PasswordHash.recommended(), mas bcrypt mantém as dependências
-# enxutas para o escopo deste projeto.
-_hasher = PasswordHash((BcryptHasher(),))
+# Argon2id como algoritmo principal (recomendação atual do FastAPI/pwdlib:
+# resistente a ataques com GPU), com bcrypt disponível para verificar hashes
+# legados. PasswordHash.recommended() já monta essa combinação.
+_hasher = PasswordHash.recommended()
 
 # Diretório de usuários (seed fixo, igual nas 3 agências). As senhas ficam apenas
 # como hash — nunca em texto puro. Estes usuários são os "donos" das contas; o
