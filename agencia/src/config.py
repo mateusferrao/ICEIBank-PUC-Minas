@@ -1,10 +1,14 @@
-"""Configuração da agência: particionamento de contas e portas.
+"""Configuração da agência: particionamento de contas, portas e autenticação.
 
 Todas as agências compartilham este mesmo arquivo (o mesmo código roda 3 vezes,
-identificado pela variável de ambiente AGENCIA_ID). O bloco de autenticação
-(segredo do JWT e diretório de usuários) é acrescentado na Parte F.
+identificado pela variável de ambiente AGENCIA_ID). Por isso o segredo do JWT e o
+diretório de usuários (seed) precisam ser idênticos nas três — só assim um
+usuário consegue autenticar em qualquer agência usada como porta de entrada.
 """
 import os
+
+from pwdlib import PasswordHash
+from pwdlib.hashers.bcrypt import BcryptHasher
 
 # TODO: substitua pelo seu OFFSET pessoal (dois últimos dígitos da matrícula/RA),
 # necessário apenas se for rodar em uma máquina compartilhada do laboratório.
@@ -31,3 +35,37 @@ def agencia_responsavel(id_conta: int) -> int:
 
 def url_agencia(id_agencia: int) -> str:
     return next(a["url"] for a in AGENCIAS if a["id"] == id_agencia)
+
+
+# ---------------------------------------------------------------------------
+# Autenticação (Parte F)
+# ---------------------------------------------------------------------------
+
+# Segredo compartilhado entre as 3 agências. Em produção viria de um cofre de
+# segredos; aqui aceita override por variável de ambiente e tem um fallback de
+# desenvolvimento para o projeto rodar sem configuração extra.
+JWT_SECRET = os.environ.get("JWT_SECRET", "iceibank-sprint1-segredo-compartilhado")
+JWT_ALGORITMO = "HS256"
+
+# Expiração do token de usuário (minutos) e do token de serviço (segundos, curto
+# pois é gerado por chamada entre agências).
+TOKEN_USUARIO_MINUTOS = int(os.environ.get("TOKEN_USUARIO_MINUTOS", "30"))
+TOKEN_SERVICO_SEGUNDOS = int(os.environ.get("TOKEN_SERVICO_SEGUNDOS", "60"))
+
+# Usa bcrypt explicitamente (algoritmo maduro e amplamente usado). Poderia ser
+# Argon2 via PasswordHash.recommended(), mas bcrypt mantém as dependências
+# enxutas para o escopo deste projeto.
+_hasher = PasswordHash((BcryptHasher(),))
+
+# Diretório de usuários (seed fixo, igual nas 3 agências). As senhas ficam apenas
+# como hash — nunca em texto puro. Estes usuários são os "donos" das contas; o
+# vínculo conta<->dono é o que habilita a autorização de posse.
+USUARIOS = {
+    "ana": {"nome": "Ana", "senha_hash": _hasher.hash("senha-ana")},
+    "bruno": {"nome": "Bruno", "senha_hash": _hasher.hash("senha-bruno")},
+    "carla": {"nome": "Carla", "senha_hash": _hasher.hash("senha-carla")},
+}
+
+
+def verificar_senha(senha: str, senha_hash: str) -> bool:
+    return _hasher.verify(senha, senha_hash)

@@ -17,13 +17,17 @@ from fastapi import HTTPException, Request
 
 from .. import config
 from ..models import CreditarRemotoIn, TransferenciaIn, centavos_para_reais, reais_para_centavos
+from ..security import TokenServico, UsuarioAutenticado, garantir_posse
+from ..services import auth_service
 
 
-async def transferir(request: Request, body: TransferenciaIn) -> dict:
+async def transferir(request: Request, body: TransferenciaIn, usuario: UsuarioAutenticado) -> dict:
     estado = request.app.state
     origem = estado.contas.obter(body.idOrigem)
     if origem is None:
         raise HTTPException(status_code=404, detail="Conta de origem não encontrada nesta agência.")
+    # Autorização: só o dono pode transferir da conta de origem.
+    garantir_posse(origem, usuario)
 
     valor_centavos = reais_para_centavos(body.valor)
     if origem["saldo_centavos"] < valor_centavos:
@@ -57,6 +61,7 @@ async def transferir(request: Request, body: TransferenciaIn) -> dict:
     ts_envio = estado.relogio.ao_enviar()
     url_destino = config.url_agencia(agencia_destino)
     try:
+        token_servico = auth_service.emitir_token_servico(estado.id_agencia)
         async with estado.criar_http_client() as client:
             resposta = await client.post(
                 f"{url_destino}/contas/{body.idDestino}/creditar-remoto",
@@ -65,6 +70,7 @@ async def transferir(request: Request, body: TransferenciaIn) -> dict:
                     "timestampLamport": ts_envio,
                     "origemAgencia": estado.id_agencia,
                 },
+                headers={"Authorization": f"Bearer {token_servico}"},
                 timeout=5.0,
             )
             resposta.raise_for_status()
@@ -80,7 +86,7 @@ async def transferir(request: Request, body: TransferenciaIn) -> dict:
         )
 
 
-async def creditar_remoto(request: Request, id: int, body: CreditarRemotoIn) -> dict:
+async def creditar_remoto(request: Request, id: int, body: CreditarRemotoIn, _servico: TokenServico) -> dict:
     estado = request.app.state
     # Ao RECEBER uma mensagem de outra agência, o relógio de Lamport é ajustado
     # com base no timestamp recebido (regra 3 do algoritmo).

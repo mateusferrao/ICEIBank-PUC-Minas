@@ -5,7 +5,7 @@ caminho -> handler; a lógica vive em controllers/.
 """
 from fastapi import FastAPI, Request
 
-from .controllers import contas_controller, transferencias_controller
+from .controllers import auth_controller, contas_controller, transferencias_controller
 
 
 async def health(request: Request) -> dict:
@@ -20,6 +20,9 @@ async def health(request: Request) -> dict:
 
 def registrar_rotas(app: FastAPI) -> None:
     app.add_api_route("/health", health, methods=["GET"])
+
+    # Autenticação (Parte F)
+    app.add_api_route("/auth/login", auth_controller.login, methods=["POST"])
 
     # Contas (Parte C)
     app.add_api_route("/contas", contas_controller.criar_conta, methods=["POST"], status_code=201)
