@@ -16,10 +16,15 @@ OFFSET = int(os.environ.get("OFFSET", "0"))
 NUMERO_AGENCIAS = 3
 PORTA_BASE = 4000 + OFFSET
 
+
+def _host(id_agencia: int) -> str:
+    # Permite que cada agência seja alcançada por um host diferente (ex.: em
+    # containers, pelo nome do serviço). Fora do Docker, o padrão é localhost.
+    return os.environ.get(f"AGENCIA_{id_agencia}_HOST", "localhost")
+
+
 AGENCIAS = [
-    {"id": 0, "url": f"http://localhost:{PORTA_BASE}"},
-    {"id": 1, "url": f"http://localhost:{PORTA_BASE + 1}"},
-    {"id": 2, "url": f"http://localhost:{PORTA_BASE + 2}"},
+    {"id": i, "url": f"http://{_host(i)}:{PORTA_BASE + i}"} for i in range(NUMERO_AGENCIAS)
 ]
 
 

@@ -1,0 +1,53 @@
+# Sobe as 3 agências do ICEIBank + o frontend com um comando (docker compose up).
+# Preparação para o Sprint 4 (Computação em Nuvem / Containers).
+#
+# - Cada agência roda o mesmo código, com AGENCIA_ID diferente.
+# - As agências se enxergam pelo NOME DO SERVIÇO na rede do compose
+#   (AGENCIA_*_HOST), então a chamada entre agências funciona dentro do Docker.
+# - As portas são mapeadas para o host para o navegador (frontend) alcançar a API.
+# - O JWT_SECRET é o mesmo nas três (login em qualquer uma; tokens de serviço).
+
+x-agencia-env: &agencia-env
+  JWT_SECRET: iceibank-sprint1-segredo-compartilhado
+  AGENCIA_0_HOST: agencia-0
+  AGENCIA_1_HOST: agencia-1
+  AGENCIA_2_HOST: agencia-2
+
+services:
+  agencia-0:
+    build: ./agencia
+    command: python -m uvicorn src.main:app --host 0.0.0.0 --port 4000
+    environment:
+      <<: *agencia-env
+      AGENCIA_ID: 0
+    ports:
+      - "4000:4000"
+
+  agencia-1:
+    build: ./agencia
+    command: python -m uvicorn src.main:app --host 0.0.0.0 --port 4001
+    environment:
+      <<: *agencia-env
+      AGENCIA_ID: 1
+    ports:
+      - "4001:4001"
+
+  agencia-2:
+    build: ./agencia
+    command: python -m uvicorn src.main:app --host 0.0.0.0 --port 4002
+    environment:
+      <<: *agencia-env
+      AGENCIA_ID: 2
+    ports:
+      - "4002:4002"
+
+  frontend:
+    image: nginx:alpine
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+    ports:
+      - "5500:80"
+    depends_on:
+      - agencia-0
+      - agencia-1
+      - agencia-2

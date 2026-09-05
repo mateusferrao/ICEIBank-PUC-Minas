@@ -27,7 +27,21 @@ No PowerShell: `$env:AGENCIA_ID=0; python -m uvicorn src.main:app --port 4000`.
 Testes: `pytest` (a partir de `agencia/`). Demonstração: `demo.ps1` (PowerShell)
 ou `demo.sh` (Linux/Mac). Linha do tempo: `python mesclar_logs.py`.
 Frontend: abra `frontend/index.html` (ou sirva com `python -m http.server`) e
-escolha a agência de entrada no seletor.
+escolha a agência de entrada no seletor. Além de login/saldo/depósito/saque/
+transferência, o frontend tem as abas **Extrato** (histórico de eventos de uma
+conta, via `GET /contas/{id}/extrato`) e **Painel das Agências** (relógios de
+Lamport e nº de contas das 3 agências ao vivo).
+
+Alternativa com Docker (sobe as 3 agências + frontend com um comando; preparação
+para o Sprint 4):
+
+```
+docker compose up --build
+# API: localhost:4000/4001/4002   Frontend: http://localhost:5500
+```
+
+Dentro do compose as agências se enxergam pelo nome do serviço
+(`AGENCIA_*_HOST`), então a chamada entre agências funciona na rede do Docker.
 
 Usuários de teste (seed, iguais nas 3 agências): `ana`/`senha-ana`,
 `bruno`/`senha-bruno`, `carla`/`senha-carla`.
@@ -170,7 +184,7 @@ Sprint 2 acrescenta.
 
 - **Formato das credenciais:** usuário + senha, contra um diretório de usuários
   em *seed* fixo, idêntico nas 3 agências (`config.USUARIOS`, senhas guardadas só
-  como hash bcrypt). Escolhi assim porque cada usuário pode entrar por **qualquer**
+  como hash **Argon2id** (via pwdlib). Escolhi assim porque cada usuário pode entrar por **qualquer**
   agência (a "porta de entrada"), então o diretório precisa ser conhecido pelas
   três; um seed compartilhado + segredo JWT compartilhado resolve isso sem
   precisar propagar cadastro entre agências (o que seria um problema distribuído
