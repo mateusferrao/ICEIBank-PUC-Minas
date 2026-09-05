@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ICEIBank</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- ================= TELA DE LOGIN ================= -->
+  <section id="tela-login">
+    <div class="cartao login-box">
+      <h2>Entrar no ICEIBank</h2>
+      <form id="form-login">
+        <label for="login-usuario">Usuário</label>
+        <input id="login-usuario" autocomplete="username" placeholder="ana / bruno / carla" required />
+        <label for="login-senha">Senha</label>
+        <input id="login-senha" type="password" autocomplete="current-password" required />
+        <button type="submit">Entrar</button>
+      </form>
+      <p id="msg-login" class="mensagem"></p>
+      <p class="dica">
+        Usuários de teste (seed): <strong>ana</strong>/senha-ana,
+        <strong>bruno</strong>/senha-bruno, <strong>carla</strong>/senha-carla.
+      </p>
+    </div>
+  </section>
+
+  <!-- ================= TELA PRINCIPAL ================= -->
+  <div id="tela-app" hidden>
+    <header>
+      <h1>ICEIBank</h1>
+      <div class="meta">
+        <span id="info-usuario"></span>
+        <label>
+          Porta de entrada:
+          <select id="seletor-agencia">
+            <option value="0">Agência 0</option>
+            <option value="1">Agência 1</option>
+            <option value="2">Agência 2</option>
+          </select>
+        </label>
+        <span id="info-agencia"></span>
+        <button id="btn-sair" class="secundario" type="button">Sair</button>
+      </div>
+    </header>
+
+    <nav class="abas">
+      <button class="aba ativa" data-painel="painel-operacoes" type="button">Operações</button>
+      <button class="aba" data-painel="painel-transferencia" type="button">Transferência</button>
+      <button class="aba" data-painel="painel-extrato" type="button">Extrato</button>
+      <button class="aba" data-painel="painel-agencias" type="button">Painel das Agências</button>
+    </nav>
+
+    <main>
+      <div class="cartao" id="painel-operacoes">
+        <h2>Contas &amp; operações</h2>
+        <div class="grade">
+          <form id="form-criar">
+            <strong>Criar conta</strong>
+            <label for="criar-id">ID da conta (a agência é id % 3)</label>
+            <input id="criar-id" type="number" min="0" required />
+            <label for="criar-saldo">Saldo inicial (R$)</label>
+            <input id="criar-saldo" type="number" step="0.01" min="0" value="0" />
+            <button type="submit">Criar</button>
+          </form>
+
+          <form id="form-saldo">
+            <strong>Consultar saldo</strong>
+            <label for="saldo-id">ID da conta</label>
+            <input id="saldo-id" type="number" min="0" required />
+            <button type="submit">Consultar</button>
+          </form>
+
+          <form id="form-deposito">
+            <strong>Depósito</strong>
+            <label for="deposito-id">ID da conta</label>
+            <input id="deposito-id" type="number" min="0" required />
+            <label for="deposito-valor">Valor (R$)</label>
+            <input id="deposito-valor" type="number" step="0.01" min="0.01" required />
+            <button type="submit">Depositar</button>
+          </form>
+
+          <form id="form-saque">
+            <strong>Saque</strong>
+            <label for="saque-id">ID da conta</label>
+            <input id="saque-id" type="number" min="0" required />
+            <label for="saque-valor">Valor (R$)</label>
+            <input id="saque-valor" type="number" step="0.01" min="0.01" required />
+            <button type="submit">Sacar</button>
+          </form>
+        </div>
+        <p id="resultado-saldo"></p>
+        <p id="msg-operacoes" class="mensagem"></p>
+      </div>
+
+      <div class="cartao" id="painel-transferencia" hidden>
+        <h2>Transferência (local ou entre agências)</h2>
+        <form id="form-transferencia">
+          <div class="grade">
+            <div>
+              <label for="transf-origem">Conta de origem (desta agência)</label>
+              <input id="transf-origem" type="number" min="0" required />
+            </div>
+            <div>
+              <label for="transf-destino">Conta de destino (qualquer agência)</label>
+              <input id="transf-destino" type="number" min="0" required />
+            </div>
+            <div>
+              <label for="transf-valor">Valor (R$)</label>
+              <input id="transf-valor" type="number" step="0.01" min="0.01" required />
+            </div>
+          </div>
+          <button type="submit">Transferir</button>
+        </form>
+        <p id="msg-transferencia" class="mensagem"></p>
+      </div>
+
+      <div class="cartao" id="painel-extrato" hidden>
+        <h2>Extrato da conta</h2>
+        <form id="form-extrato">
+          <label for="extrato-id">ID da conta (desta agência)</label>
+          <input id="extrato-id" type="number" min="0" required />
+          <button type="submit">Ver extrato</button>
+        </form>
+        <p id="msg-extrato" class="mensagem"></p>
+        <table id="tabela-extrato" hidden>
+          <thead>
+            <tr><th>Lamport</th><th>Tipo</th><th>Detalhes</th><th>Hora (parede)</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="cartao" id="painel-agencias" hidden>
+        <h2>Painel das Agências (relógios de Lamport ao vivo)</h2>
+        <p class="dica">
+          Cada agência é uma partição independente. O contador de Lamport mostra
+          quantos eventos aquela agência processou, e não o relógio físico.
+        </p>
+        <button id="btn-atualizar-painel" type="button">Atualizar</button>
+        <div id="cartoes-agencias" class="grade" style="margin-top: 14px;"></div>
+        <p id="msg-agencias" class="mensagem"></p>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/model.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/view.js"></script>
+  <script src="js/controller.js"></script>
+</body>
+</html>
