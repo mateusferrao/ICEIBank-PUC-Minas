@@ -12,6 +12,7 @@ Executar:
 import os
 from contextlib import asynccontextmanager
 
+import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -50,6 +51,9 @@ def criar_app(id_agencia: int | None = None) -> FastAPI:
     app.state.relogio = RelogioLamport()
     app.state.registro = RegistroEventos(f"agencia-{id_agencia}")
     app.state.contas = ContaRepository()
+    # Factory de cliente HTTP para as chamadas entre agências. Injetada aqui
+    # para que os testes possam substituí-la por um cliente in-process.
+    app.state.criar_http_client = httpx.AsyncClient
 
     registrar_rotas(app)
     return app
