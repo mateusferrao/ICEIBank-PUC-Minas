@@ -52,6 +52,30 @@ async def criar_conta(request: Request, body: CriarContaIn, usuario: UsuarioAute
     return conta_para_resposta(conta)
 
 
+async def extrato(request: Request, id: int, usuario: UsuarioAutenticado) -> dict:
+    """Histórico de eventos registrados para uma conta específica (nesta agência).
+
+    Endpoint de leitura de conveniência para o frontend. Reaproveita o event log
+    já gravado, filtrando os eventos que referenciam esta conta.
+    """
+    estado = request.app.state
+    conta = estado.contas.obter(id)
+    if conta is None:
+        raise HTTPException(status_code=404, detail="Conta não encontrada nesta agência.")
+    garantir_posse(conta, usuario)
+
+    def referencia(detalhes: dict) -> bool:
+        return id in (
+            detalhes.get("id"),
+            detalhes.get("idConta"),
+            detalhes.get("idOrigem"),
+            detalhes.get("idDestino"),
+        )
+
+    eventos = [e for e in estado.registro.ler_eventos() if referencia(e.get("detalhes", {}))]
+    return {"conta": id, "eventos": eventos}
+
+
 async def consultar_saldo(request: Request, id: int, usuario: UsuarioAutenticado) -> dict:
     conta = request.app.state.contas.obter(id)
     if conta is None:

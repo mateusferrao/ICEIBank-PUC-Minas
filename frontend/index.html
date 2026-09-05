@@ -45,8 +45,15 @@
       </div>
     </header>
 
+    <nav class="abas">
+      <button class="aba ativa" data-painel="painel-operacoes" type="button">Operações</button>
+      <button class="aba" data-painel="painel-transferencia" type="button">Transferência</button>
+      <button class="aba" data-painel="painel-extrato" type="button">Extrato</button>
+      <button class="aba" data-painel="painel-agencias" type="button">Painel das Agências</button>
+    </nav>
+
     <main>
-      <div class="cartao">
+      <div class="cartao" id="painel-operacoes">
         <h2>Contas &amp; operações</h2>
         <div class="grade">
           <form id="form-criar">
@@ -87,7 +94,7 @@
         <p id="msg-operacoes" class="mensagem"></p>
       </div>
 
-      <div class="cartao">
+      <div class="cartao" id="painel-transferencia" hidden>
         <h2>Transferência (local ou entre agências)</h2>
         <form id="form-transferencia">
           <div class="grade">
@@ -107,6 +114,33 @@
           <button type="submit">Transferir</button>
         </form>
         <p id="msg-transferencia" class="mensagem"></p>
+      </div>
+
+      <div class="cartao" id="painel-extrato" hidden>
+        <h2>Extrato da conta</h2>
+        <form id="form-extrato">
+          <label for="extrato-id">ID da conta (desta agência)</label>
+          <input id="extrato-id" type="number" min="0" required />
+          <button type="submit">Ver extrato</button>
+        </form>
+        <p id="msg-extrato" class="mensagem"></p>
+        <table id="tabela-extrato" hidden>
+          <thead>
+            <tr><th>Lamport</th><th>Tipo</th><th>Detalhes</th><th>Hora (parede)</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="cartao" id="painel-agencias" hidden>
+        <h2>Painel das Agências (relógios de Lamport ao vivo)</h2>
+        <p class="dica">
+          Cada agência é uma partição independente. O contador de Lamport reflete
+          quantos eventos aquela agência processou — não o relógio físico.
+        </p>
+        <button id="btn-atualizar-painel" type="button">Atualizar</button>
+        <div id="cartoes-agencias" class="grade" style="margin-top: 14px;"></div>
+        <p id="msg-agencias" class="mensagem"></p>
       </div>
     </main>
   </div>

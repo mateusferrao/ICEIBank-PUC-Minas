@@ -14,6 +14,15 @@ const Controller = {
     View.el("form-deposito").addEventListener("submit", (e) => this.aoDepositar(e));
     View.el("form-saque").addEventListener("submit", (e) => this.aoSacar(e));
     View.el("form-transferencia").addEventListener("submit", (e) => this.aoTransferir(e));
+    View.el("form-extrato").addEventListener("submit", (e) => this.aoConsultarExtrato(e));
+    View.el("btn-atualizar-painel").addEventListener("click", () => this.aoAtualizarPainel());
+
+    document.querySelectorAll(".aba").forEach((botao) => {
+      botao.addEventListener("click", () => {
+        View.trocarAba(botao.dataset.painel);
+        if (botao.dataset.painel === "painel-agencias") this.aoAtualizarPainel();
+      });
+    });
   },
 
   // Trata erros de forma visível; 401 encerra a sessão (token expirado/ausente).
@@ -102,6 +111,39 @@ const Controller = {
     } catch (erro) {
       this._tratarErro("msg-operacoes", erro);
     }
+  },
+
+  async aoConsultarExtrato(e) {
+    e.preventDefault();
+    const id = parseInt(View.el("extrato-id").value, 10);
+    try {
+      const dados = await Api.extrato(id);
+      View.mostrarExtrato(dados.eventos);
+      if (dados.eventos.length === 0) {
+        View.mensagem("msg-extrato", "Nenhum evento para esta conta ainda.", "info");
+      } else {
+        View.limparMensagem("msg-extrato");
+      }
+    } catch (erro) {
+      View.el("tabela-extrato").hidden = true;
+      this._tratarErro("msg-extrato", erro);
+    }
+  },
+
+  async aoAtualizarPainel() {
+    View.limparMensagem("msg-agencias");
+    // Consulta o /health das 3 agências em paralelo (rota pública).
+    const linhas = await Promise.all(
+      [0, 1, 2].map(async (id) => {
+        try {
+          const h = await Api.healthDe(id);
+          return { agencia: id, lamport: h.lamport, contas: h.contas, ok: true };
+        } catch (erro) {
+          return { agencia: id, ok: false };
+        }
+      })
+    );
+    View.mostrarPainelAgencias(linhas);
   },
 
   async aoTransferir(e) {

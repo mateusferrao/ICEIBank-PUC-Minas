@@ -46,6 +46,16 @@ const Api = {
   saldo(id) {
     return this._requisicao(`/contas/${id}`);
   },
+  extrato(id) {
+    return this._requisicao(`/contas/${id}/extrato`);
+  },
+  // Health de uma agência específica (rota pública), para o Painel das Agências.
+  async healthDe(agenciaId) {
+    const url = `http://localhost:${Model.portaBase + agenciaId}/health`;
+    const resposta = await fetch(url);
+    if (!resposta.ok) throw new Error(`Agência ${agenciaId} indisponível`);
+    return resposta.json();
+  },
   depositar(id, valor) {
     return this._requisicao(`/contas/${id}/depositar`, { metodo: "POST", corpo: { valor } });
   },

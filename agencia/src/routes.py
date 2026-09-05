@@ -27,6 +27,7 @@ def registrar_rotas(app: FastAPI) -> None:
     # Contas (Parte C)
     app.add_api_route("/contas", contas_controller.criar_conta, methods=["POST"], status_code=201)
     app.add_api_route("/contas/{id}", contas_controller.consultar_saldo, methods=["GET"])
+    app.add_api_route("/contas/{id}/extrato", contas_controller.extrato, methods=["GET"])
     app.add_api_route("/contas/{id}/depositar", contas_controller.depositar, methods=["POST"])
     app.add_api_route("/contas/{id}/sacar", contas_controller.sacar, methods=["POST"])
 

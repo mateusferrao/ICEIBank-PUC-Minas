@@ -71,6 +71,45 @@ button.secundario { background: transparent; color: #fff; border: 1px solid rgba
 
 #resultado-saldo { margin-top: 10px; font-size: 1rem; }
 
+.abas {
+  max-width: 880px;
+  margin: 18px auto 0;
+  padding: 0 16px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.aba {
+  background: #e2e8f0;
+  color: #33414f;
+  border: 1px solid var(--borda);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  padding: 8px 14px;
+}
+.aba.ativa { background: #fff; color: var(--azul); font-weight: 700; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+  font-size: 0.85rem;
+}
+th, td { border: 1px solid var(--borda); padding: 6px 8px; text-align: left; }
+th { background: var(--azul-claro); color: var(--azul); }
+td { word-break: break-word; }
+
+.cartao-agencia {
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: var(--azul-claro);
+  text-align: center;
+  line-height: 1.6;
+}
+.cartao-agencia.off { background: #fbe9ea; }
+.cartao-agencia .off-txt { color: var(--vermelho); font-weight: 600; }
+
 .login-box { max-width: 360px; margin: 60px auto; }
 .dica { font-size: 0.78rem; color: var(--cinza); margin-top: 10px; line-height: 1.5; }
 [hidden] { display: none !important; }

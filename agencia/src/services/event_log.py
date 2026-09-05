@@ -37,3 +37,15 @@ class RegistroEventos:
                 arquivo.write(linha)
         print(f"[Lamport {timestamp_lamport}] {tipo} {detalhes}")
         return evento
+
+    def ler_eventos(self) -> list[dict]:
+        """Lê todos os eventos já registrados por esta agência (o próprio .jsonl)."""
+        if not os.path.exists(self.caminho_arquivo):
+            return []
+        eventos: list[dict] = []
+        with open(self.caminho_arquivo, encoding="utf-8") as arquivo:
+            for linha in arquivo:
+                linha = linha.strip()
+                if linha:
+                    eventos.append(json.loads(linha))
+        return eventos
