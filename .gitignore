@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ICEIBank - runtime e ambiente
+agencia/data/*.jsonl
+agencia/.venv/
+.venv/
