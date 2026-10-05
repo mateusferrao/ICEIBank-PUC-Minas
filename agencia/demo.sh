@@ -51,7 +51,5 @@ echo -e "\n== 8) Idempotencia: mesma chave nao debita de novo =="
 curl -s $AG0/transferencias -H "$HANA" -H 'Content-Type: application/json' -H "Idempotency-Key: $CHAVE" -d '{"idOrigem":0,"idDestino":1,"valor":30}'; echo
 echo "saldo conta 0 (deve ser igual ao do passo 7):"; curl -s $AG0/contas/0 -H "$HANA"; echo
 
-echo -e "\n== FALHA CONHECIDA (rode manualmente) =="
-echo "Derrube a agencia 1 e refaça uma transferencia 0->1:"
-echo "  curl -s -w '\\nHTTP %{http_code}\\n' $AG0/transferencias -H \"\$HANA\" -H 'Content-Type: application/json' -d '{\"idOrigem\":0,\"idDestino\":1,\"valor\":5}'"
-echo "Esperado: HTTP 502 + log TRANSFERENCIA_FALHOU; saldo da conta 0 NAO revertido."
+echo -e "\n== RESILIENCIA (Sprint 2) =="
+echo "Para o cenario de agencia fora do ar com RabbitMQ (mensagem retida, reinicio, DLQ), use demo-sprint2.ps1 (PowerShell)."

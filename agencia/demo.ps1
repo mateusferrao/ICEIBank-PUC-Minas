@@ -1,4 +1,4 @@
-# Demonstração do ICEIBank (Sprint 1) via PowerShell / Invoke-RestMethod.
+# Demonstração do ICEIBank (Sprint 1, ainda valido no Sprint 2) via PowerShell / Invoke-RestMethod.
 # Pré-requisito: as 3 agências rodando em janelas separadas:
 #   $env:AGENCIA_ID=0; python -m uvicorn src.main:app --port 4000
 #   $env:AGENCIA_ID=1; python -m uvicorn src.main:app --port 4001
@@ -56,7 +56,5 @@ Invoke-RestMethod -Uri "$AG0/transferencias" -Method Post -Headers ($HANA + @{ "
 Write-Host "Saldo da conta 0 (deve continuar o mesmo do passo 7):"
 Invoke-RestMethod -Uri "$AG0/contas/0" -Method Get -Headers $HANA
 
-Write-Host "`n== FALHA CONHECIDA (rode manualmente) ==" -ForegroundColor Yellow
-Write-Host "Feche a janela da agencia 1 e execute:" -ForegroundColor Yellow
-Write-Host '  Invoke-RestMethod -Uri "http://localhost:4000/transferencias" -Method Post -Headers $HANA -ContentType "application/json" -Body ''{"idOrigem":0,"idDestino":1,"valor":5}''' -ForegroundColor Yellow
-Write-Host "Esperado: 502 + log TRANSFERENCIA_FALHOU; o saldo da conta 0 NAO e revertido." -ForegroundColor Yellow
+Write-Host "`n== RESILIENCIA (Sprint 2) ==" -ForegroundColor Yellow
+Write-Host "Para o cenario de agencia fora do ar com RabbitMQ (mensagem retida, reinicio, DLQ), use .\demo-sprint2.ps1" -ForegroundColor Yellow

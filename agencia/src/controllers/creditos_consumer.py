@@ -31,7 +31,7 @@ def criar_handler(app: FastAPI):
         detalhes = {**detalhes, "motivo": motivo, "tentativa": tentativa + 1}
         estado.registro.registrar("CREDITO_REMOTO_FALHOU", vetor, detalhes)
         if permanente or tentativa + 1 >= MAX_TENTATIVAS:
-            estado.registro.registrar("CREDITO_REMOTO_DLQ", vetor, detalhes)
+            estado.registro.registrar("CREDITO_REMOTO_DLQ", estado.relogio.evento_local(), detalhes)
         raise CreditoRejeitado(motivo, permanente)
 
     async def handler(mensagem: dict, tentativa: int = 0) -> None:
