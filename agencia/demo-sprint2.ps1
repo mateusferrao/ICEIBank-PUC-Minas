@@ -11,10 +11,14 @@
 # ou arquivo .env na raiz do repositorio).
 #
 # -SemPausas: roda tudo sem parar e com as janelas minimizadas (para testar o script).
-param([switch]$SemPausas)
+# -CapturarPrints: em vez de esperar voce, organiza as janelas e salva os prints
+# sozinho em evidencias\sprint2\ (so da area das janelas do demo).
+param([switch]$SemPausas, [switch]$CapturarPrints)
 
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
+. "$PSScriptRoot\capturar-janelas.ps1"
+if ($CapturarPrints) { $host.UI.RawUI.WindowTitle = "Demo Sprint 2" }
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $PY = ".\.venv\Scripts\python.exe"
 
@@ -24,13 +28,17 @@ if (-not $env:RABBITMQ_URL) {
 }
 if (-not $env:RABBITMQ_URL) { throw "Defina RABBITMQ_URL (variavel de ambiente ou arquivo .env na raiz)." }
 
-function Pausa($texto) {
+function Pausa($texto, $arquivo = $null, $modo = "tela-cheia") {
+  if ($CapturarPrints -and $arquivo) { Capturar-Print $arquivo $modo; return }
   if ($SemPausas) { return }
   Write-Host "`n>>> $texto" -ForegroundColor Yellow
   Read-Host "    Depois do print, aperte ENTER para continuar" | Out-Null
 }
 
-function Titulo($texto) { Write-Host "`n== $texto ==" -ForegroundColor Cyan }
+function Titulo($texto) {
+  if ($CapturarPrints) { Clear-Host }
+  Write-Host "`n== $texto ==" -ForegroundColor Cyan
+}
 
 $janelas = @{}
 function Subir-Agencia($id) {
@@ -46,6 +54,8 @@ function Subir-Agencia($id) {
 
 function Derrubar-Agencia($id) {
   taskkill /PID $janelas[$id].Id /T /F | Out-Null
+  Start-Sleep -Milliseconds 800
+  Fechar-Janela "Agencia $id"   # o terminal fica aberto depois do processo morrer
 }
 
 # O FastAPI responde JSON em UTF-8 sem declarar o charset, e o Invoke-RestMethod do
@@ -100,7 +110,7 @@ try {
   Write-Host "`nEventos da agencia 1 (destino):"
   Ultimos-Eventos 1 2
   Write-Host "`nVetores: ag0 = $((Req Get http://localhost:4000/health).vetor -join ',')   ag1 = $((Req Get http://localhost:4001/health).vetor -join ',')"
-  Pausa "PRINT 1 -> evidencias\sprint2\transferencia-assincrona.png  (este terminal + as janelas 'Agencia 0' e 'Agencia 1' visiveis)"
+  Pausa "PRINT 1 -> evidencias\sprint2\transferencia-assincrona.png  (este terminal + as janelas 'Agencia 0' e 'Agencia 1' visiveis)" "transferencia-assincrona" "lado-a-lado"
 
   # ---------------------------------------------------------------- PRINT 2
   Titulo "2) Resiliencia: agencia 1 FORA DO AR"
@@ -117,7 +127,7 @@ try {
   Ultimos-Eventos 1 5
   Write-Host "`nSaldo da conta 0 (ag0) - o debito continua aplicado:"
   Req Get "http://localhost:4000/contas/0" $H[0]
-  Pausa "PRINT 2 -> evidencias\sprint2\resiliencia-fila.png  (este terminal + a janela 'Agencia 1' com o log das tentativas)"
+  Pausa "PRINT 2 -> evidencias\sprint2\resiliencia-fila.png  (este terminal + a janela 'Agencia 1' com o log das tentativas)" "resiliencia-fila" "lado-a-lado"
 
   # ---------------------------------------------------------------- PRINT 4
   Titulo "3) Dead-letter queue (funcionalidade adicional)"
@@ -129,7 +139,7 @@ try {
     Where-Object { $_.tipo -like "CREDITO_REMOTO_*" } | ForEach-Object {
       "{0}  vetor=[{1}]  {2}  tentativa={3}  motivo={4}" -f $_.agencia, ($_.timestampVetorial -join ","), $_.tipo, $_.detalhes.tentativa, $_.detalhes.motivo
     }
-  Pausa "PRINT 4 -> evidencias\sprint2\dlq.png  (este terminal; opcional: tambem o RabbitMQ Manager mostrando fila-agencia-1.dlq com 1 mensagem)"
+  Pausa "PRINT 4 -> evidencias\sprint2\dlq.png  (este terminal; opcional: tambem o RabbitMQ Manager mostrando fila-agencia-1.dlq com 1 mensagem)" "dlq" "tela-cheia"
 
   # ---------------------------------------------------------------- PRINT 3
   Titulo "4) Linha do tempo causal (eventos concorrentes x causais)"
@@ -137,10 +147,10 @@ try {
   Post 2 "/contas" '{"id":2,"saldoInicial":5}' $H[2] | Out-Null
   Write-Host "Conta 2 criada na agencia 2, sem relacao com as transferencias. Rodando mesclar_logs.py:`n"
   & $PY mesclar_logs.py
-  Pausa "PRINT 3 -> evidencias\sprint2\linha-do-tempo-causal.png  (mostre os pares CONCORRENTES e o par CAUSAL; pode rolar o terminal)"
+  Pausa "PRINT 3 -> evidencias\sprint2\linha-do-tempo-causal.png  (mostre os pares CONCORRENTES e o par CAUSAL; pode rolar o terminal)" "linha-do-tempo-causal" "tela-cheia"
 }
 finally {
-  if (-not $SemPausas) { Read-Host "`nAperte ENTER para encerrar as 3 agencias" | Out-Null }
+  if (-not $SemPausas -and -not $CapturarPrints) { Read-Host "`nAperte ENTER para encerrar as 3 agencias" | Out-Null }
   foreach ($id in @($janelas.Keys)) { try { taskkill /PID $janelas[$id].Id /T /F | Out-Null } catch {} }
   Write-Host "Agencias encerradas."
 }

@@ -26,3 +26,8 @@ indicado na tela:
 
 Para a regressão do frontend (JWT e telas), vale um print extra do frontend
 (`frontend-vetor.png`): login, extrato com a coluna "Vetor" e o Painel das Agências.
+
+Os 4 prints acima foram gerados automaticamente pelo próprio script, com
+`.\demo-sprint2.ps1 -CapturarPrints`: ele organiza as janelas (demo à esquerda e as
+agências à direita) e captura só a área delas, a partir de uma execução real contra o
+CloudAMQP. Para refazer à mão, rode sem o parâmetro e tire os prints nas pausas.
