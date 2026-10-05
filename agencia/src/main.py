@@ -61,6 +61,11 @@ def criar_app(id_agencia: int | None = None, criar_broker=None) -> FastAPI:
     app.state.id_agencia = id_agencia
     app.state.relogio = RelogioVetorial(id_agencia, config.NUMERO_AGENCIAS)
     app.state.registro = RegistroEventos(f"agencia-{id_agencia}")
+    # O relógio é reconstruído a partir do log (que sobrevive ao reinício).
+    for evento in app.state.registro.ler_eventos():
+        vetor = evento.get("timestampVetorial")
+        if vetor is not None and len(vetor) == config.NUMERO_AGENCIAS:
+            app.state.relogio.restaurar(vetor)
     app.state.contas = ContaRepository()
     app.state.idempotencia = Idempotencia()
     # O broker só conecta no lifespan. A fábrica `criar_broker` existe para os

@@ -41,6 +41,17 @@ class RelogioVetorial:
             self.vetor[self.id_agencia] += 1
             return list(self.vetor)
 
+    def restaurar(self, vetor: Sequence[int]) -> None:
+        """Assume o máximo entre o vetor atual e `vetor`, sem criar evento.
+
+        Usado ao subir a agência: o log de eventos sobrevive ao reinício e o vetor
+        não, então o relógio é reconstruído a partir dele. Sem isso, a agência
+        voltaria a contar do zero e seus eventos novos pareceriam concorrentes com
+        os que ela mesma registrou antes de reiniciar."""
+        with self._lock:
+            for i in range(len(self.vetor)):
+                self.vetor[i] = max(self.vetor[i], vetor[i])
+
     def atual(self) -> list[int]:
         """Cópia do vetor atual, sem criar evento (usado no /health)."""
         with self._lock:

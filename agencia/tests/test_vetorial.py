@@ -60,3 +60,11 @@ def test_eventos_independentes_em_agencias_diferentes_sao_concorrentes():
     a = RelogioVetorial(0, 3)
     b = RelogioVetorial(1, 3)
     assert comparar(a.evento_local(), b.evento_local()) == "CONCORRENTES"
+
+
+def test_restaurar_assume_o_maximo_sem_criar_evento():
+    r = RelogioVetorial(1, 3)
+    r.restaurar([2, 5, 1])
+    r.restaurar([4, 3, 0])  # vetor mais antigo não faz o relógio voltar
+    assert r.atual() == [4, 5, 1]
+    assert r.evento_local() == [4, 6, 1]

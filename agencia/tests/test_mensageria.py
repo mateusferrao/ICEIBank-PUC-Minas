@@ -178,3 +178,17 @@ def test_destino_local_inexistente_registra_estorno(cliente):
     cliente.post("/contas", json={"id": 0, "saldoInicial": 100})
     cliente.post("/transferencias", json={"idOrigem": 0, "idDestino": 3, "valor": 30})
     assert "TRANSFERENCIA_ESTORNADA" in [e["tipo"] for e in cliente.app.state.registro.ler_eventos()]
+
+
+def test_agencia_reiniciada_nao_volta_atras_no_proprio_contador(rede):
+    """O relógio é reconstruído a partir do log, que sobrevive ao reinício. Sem
+    isso, um evento novo da agência pareceria concorrente com os antigos dela."""
+    a1 = rede.subir(1)
+    a1.post("/contas", json={"id": 1, "saldoInicial": 0})
+    a1.post("/contas", json={"id": 4, "saldoInicial": 0})
+    vetor_antes = a1.get("/health").json()["vetor"]
+    rede.derrubar(a1)
+
+    a1_nova = rede.subir(1)
+
+    assert a1_nova.get("/health").json()["vetor"] == vetor_antes
