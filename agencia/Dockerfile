@@ -8,7 +8,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY src ./src
-COPY mesclar_logs.py .
+COPY mesclar_logs.py ver_filas.py .
+ENV PYTHONPATH=/app
 
 # Porta padrão da agência 0; cada serviço no docker-compose sobrescreve o
 # comando com a porta correta (4000 + AGENCIA_ID).

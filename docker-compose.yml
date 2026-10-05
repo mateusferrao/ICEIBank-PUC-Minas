@@ -2,13 +2,14 @@
 # Preparação para o Sprint 4 (Computação em Nuvem / Containers).
 #
 # - Cada agência roda o mesmo código, com AGENCIA_ID diferente.
-# - As agências se enxergam pelo NOME DO SERVIÇO na rede do compose
-#   (AGENCIA_*_HOST), então a chamada entre agências funciona dentro do Docker.
+# - A comunicação entre agências agora passa pelo RabbitMQ (CloudAMQP): defina
+#   RABBITMQ_URL no .env da raiz (o compose lê esse arquivo automaticamente).
 # - As portas são mapeadas para o host para o navegador (frontend) alcançar a API.
-# - O JWT_SECRET é o mesmo nas três (login em qualquer uma; tokens de serviço).
+# - O JWT_SECRET é o mesmo nas três (login em qualquer uma).
 
 x-agencia-env: &agencia-env
   JWT_SECRET: iceibank-sprint1-segredo-compartilhado
+  RABBITMQ_URL: ${RABBITMQ_URL:?defina RABBITMQ_URL no arquivo .env da raiz}
   AGENCIA_0_HOST: agencia-0
   AGENCIA_1_HOST: agencia-1
   AGENCIA_2_HOST: agencia-2
@@ -22,6 +23,8 @@ services:
       AGENCIA_ID: 0
     ports:
       - "4000:4000"
+    volumes:
+      - ./agencia/data:/app/data
 
   agencia-1:
     build: ./agencia
@@ -31,6 +34,8 @@ services:
       AGENCIA_ID: 1
     ports:
       - "4001:4001"
+    volumes:
+      - ./agencia/data:/app/data
 
   agencia-2:
     build: ./agencia
@@ -40,6 +45,8 @@ services:
       AGENCIA_ID: 2
     ports:
       - "4002:4002"
+    volumes:
+      - ./agencia/data:/app/data
 
   frontend:
     image: nginx:alpine
