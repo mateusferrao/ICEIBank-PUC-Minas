@@ -137,7 +137,7 @@ const Controller = {
       [0, 1, 2].map(async (id) => {
         try {
           const h = await Api.healthDe(id);
-          return { agencia: id, lamport: h.lamport, contas: h.contas, ok: true };
+          return { agencia: id, vetor: h.vetor, contas: h.contas, ok: true };
         } catch (erro) {
           return { agencia: id, ok: false };
         }

@@ -34,10 +34,22 @@ const View = {
     alvo.className = "mensagem";
   },
 
+  // Monta um elemento com texto puro (textContent), sem interpretar HTML. Tudo que
+  // vem da API passa por aqui para não abrir brecha de XSS.
+  _no(tag, texto) {
+    const no = document.createElement(tag);
+    no.textContent = texto;
+    return no;
+  },
+
   mostrarSaldo(conta) {
-    this.el("resultado-saldo").innerHTML =
-      `Conta <strong>${conta.id}</strong> (dono: ${conta.dono || "-"}), ` +
-      `saldo: <strong>${this.formatarReais(conta.saldo)}</strong>`;
+    const alvo = this.el("resultado-saldo");
+    alvo.replaceChildren(
+      "Conta ",
+      this._no("strong", conta.id),
+      ` (dono: ${conta.dono || "-"}), saldo: `,
+      this._no("strong", this.formatarReais(conta.saldo))
+    );
   },
 
   // Alterna a aba visível e destaca o botão correspondente.
@@ -55,9 +67,12 @@ const View = {
     corpo.innerHTML = "";
     for (const ev of eventos) {
       const tr = document.createElement("tr");
-      tr.innerHTML =
-        `<td>${ev.timestampLamport}</td><td>${ev.tipo}</td>` +
-        `<td>${JSON.stringify(ev.detalhes)}</td><td>${ev.horaParede}</td>`;
+      tr.append(
+        this._no("td", `[${ev.timestampVetorial.join(", ")}]`),
+        this._no("td", ev.tipo),
+        this._no("td", JSON.stringify(ev.detalhes)),
+        this._no("td", ev.horaParede)
+      );
       corpo.appendChild(tr);
     }
     this.el("tabela-extrato").hidden = eventos.length === 0;
@@ -69,9 +84,21 @@ const View = {
     for (const l of linhas) {
       const div = document.createElement("div");
       div.className = "cartao-agencia " + (l.ok ? "ok" : "off");
-      div.innerHTML = l.ok
-        ? `<strong>Agência ${l.agencia}</strong><br>Lamport: <b>${l.lamport}</b><br>Contas: ${l.contas}`
-        : `<strong>Agência ${l.agencia}</strong><br><span class="off-txt">fora do ar</span>`;
+      const titulo = this._no("strong", `Agência ${l.agencia}`);
+      if (l.ok) {
+        div.append(
+          titulo,
+          document.createElement("br"),
+          "Vetor: ",
+          this._no("b", `[${l.vetor.join(", ")}]`),
+          document.createElement("br"),
+          `Contas: ${l.contas}`
+        );
+      } else {
+        const fora = this._no("span", "fora do ar");
+        fora.className = "off-txt";
+        div.append(titulo, document.createElement("br"), fora);
+      }
       alvo.appendChild(div);
     }
   },

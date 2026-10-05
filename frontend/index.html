@@ -126,17 +126,17 @@
         <p id="msg-extrato" class="mensagem"></p>
         <table id="tabela-extrato" hidden>
           <thead>
-            <tr><th>Lamport</th><th>Tipo</th><th>Detalhes</th><th>Hora (parede)</th></tr>
+            <tr><th>Vetor</th><th>Tipo</th><th>Detalhes</th><th>Hora (parede)</th></tr>
           </thead>
           <tbody></tbody>
         </table>
       </div>
 
       <div class="cartao" id="painel-agencias" hidden>
-        <h2>Painel das Agências (relógios de Lamport ao vivo)</h2>
+        <h2>Painel das Agências (relógios vetoriais)</h2>
         <p class="dica">
-          Cada agência é uma partição independente. O contador de Lamport mostra
-          quantos eventos aquela agência processou, e não o relógio físico.
+          Cada agência é uma partição independente. O vetor tem uma posição por agência e mostra
+          quantos eventos de cada agência esta já conhece (não é o relógio físico).
         </p>
         <button id="btn-atualizar-painel" type="button">Atualizar</button>
         <div id="cartoes-agencias" class="grade" style="margin-top: 14px;"></div>
