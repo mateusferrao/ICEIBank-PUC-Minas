@@ -39,24 +39,3 @@ def test_dono_diferente_recebe_403_no_mesmo_app(app_agencia):
     token_bruno = auth_service.emitir_token_usuario("bruno")
     cliente.headers.update({"Authorization": f"Bearer {token_bruno}"})
     assert cliente.post("/contas/0/sacar", json={"valor": 10}).status_code == 403
-
-
-def test_creditar_remoto_rejeita_token_de_usuario(cliente):
-    cliente.post("/contas", json={"id": 0, "saldoInicial": 0})
-    # cliente está com token de USUÁRIO (ana); creditar-remoto exige token de serviço
-    r = cliente.post(
-        "/contas/0/creditar-remoto",
-        json={"valor": 10, "vetorEnvio": [0, 1, 0], "origemAgencia": 1},
-    )
-    assert r.status_code == 401
-
-
-def test_creditar_remoto_aceita_token_de_servico(cliente):
-    cliente.post("/contas", json={"id": 0, "saldoInicial": 0})
-    token_svc = auth_service.emitir_token_servico(1)
-    r = cliente.post(
-        "/contas/0/creditar-remoto",
-        json={"valor": 10, "vetorEnvio": [0, 1, 0], "origemAgencia": 1},
-        headers={"Authorization": f"Bearer {token_svc}"},
-    )
-    assert r.status_code == 200

@@ -1,7 +1,6 @@
 """Dependências de segurança do FastAPI (Parte F).
 
 - get_current_user: exige um token de usuário válido e devolve o username.
-- require_service_token: exige um token de serviço válido (chamada entre agências).
 - garantir_posse: é a autorização, a operação só vale para o dono da conta.
 
 Token faltando, inválido ou expirado sempre resulta em HTTP 401.
@@ -35,10 +34,6 @@ async def get_current_user(cred: _CredOpcional) -> str:
     return _decodificar_ou_401(cred, "usuario")["sub"]
 
 
-async def require_service_token(cred: _CredOpcional) -> dict:
-    return _decodificar_ou_401(cred, "svc")
-
-
 def garantir_posse(conta: dict, usuario: str) -> None:
     if conta.get("dono") != usuario:
         raise HTTPException(
@@ -48,4 +43,3 @@ def garantir_posse(conta: dict, usuario: str) -> None:
 
 
 UsuarioAutenticado = Annotated[str, Depends(get_current_user)]
-TokenServico = Annotated[dict, Depends(require_service_token)]

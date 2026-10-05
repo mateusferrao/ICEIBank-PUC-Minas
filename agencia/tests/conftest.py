@@ -25,7 +25,9 @@ def app_agencia(tmp_path, monkeypatch):
     monkeypatch.setattr(event_log, "_DIR_DADOS", str(tmp_path))
 
     def _criar(id_agencia: int = 0, usuario: str | None = "ana", senha: str = "senha-ana") -> TestClient:
-        client = TestClient(criar_app(id_agencia=id_agencia))
+        from tests.fakes import FakeBroker, FakeBus
+
+        client = TestClient(criar_app(id_agencia=id_agencia, criar_broker=lambda: FakeBroker(FakeBus())))
         if usuario is not None:
             autenticar(client, usuario, senha)
         return client
@@ -37,3 +39,39 @@ def app_agencia(tmp_path, monkeypatch):
 def cliente(app_agencia):
     """TestClient da agência 0, autenticado como 'ana'."""
     return app_agencia(0)
+
+
+class Rede:
+    """Três agências ligadas pelo mesmo FakeBus. `subir` roda o lifespan (como o
+    uvicorn faria) e `derrubar` encerra, deixando as mensagens retidas na fila."""
+
+    def __init__(self) -> None:
+        from tests.fakes import FakeBus
+
+        self.bus = FakeBus()
+        self._abertos: list[TestClient] = []
+
+    def subir(self, id_agencia: int, usuario: str = "ana", senha: str = "senha-ana") -> TestClient:
+        from tests.fakes import FakeBroker
+
+        client = TestClient(criar_app(id_agencia=id_agencia, criar_broker=lambda: FakeBroker(self.bus)))
+        client.__enter__()
+        self._abertos.append(client)
+        autenticar(client, usuario, senha)
+        return client
+
+    def derrubar(self, client: TestClient) -> None:
+        self._abertos.remove(client)
+        client.__exit__(None, None, None)
+
+    def fechar_tudo(self) -> None:
+        while self._abertos:
+            self.derrubar(self._abertos[-1])
+
+
+@pytest.fixture
+def rede(tmp_path, monkeypatch):
+    monkeypatch.setattr(event_log, "_DIR_DADOS", str(tmp_path))
+    r = Rede()
+    yield r
+    r.fechar_tudo()

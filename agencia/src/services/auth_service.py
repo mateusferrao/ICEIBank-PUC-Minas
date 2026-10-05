@@ -1,12 +1,9 @@
 """Emite e valida os tokens JWT (Parte F).
 
-São dois tipos de token, os dois assinados com o mesmo segredo:
-- "usuario": identifica uma pessoa logada (o campo `sub` é o username). É o que as
-  requisições do frontend usam.
-- "svc" (serviço): identifica uma agência falando com outra na chamada interna
-  creditar-remoto. Separar a identidade de serviço da identidade do usuário deixa
-  claro que o crédito remoto é uma confiança entre sistemas, e não uma ação de um
-  usuário específico.
+O token é do tipo "usuario": identifica uma pessoa logada (o campo `sub` é o
+username) e é o que as requisições do frontend usam. No Sprint 1 existia também um
+token de serviço para a chamada REST entre agências. Ele saiu no Sprint 2, porque o
+crédito remoto agora chega por mensagem no RabbitMQ, sem passar pela API HTTP.
 """
 from datetime import datetime, timedelta, timezone
 
@@ -27,16 +24,6 @@ def emitir_token_usuario(usuario: str, minutos: int | None = None) -> str:
         "tipo": "usuario",
         "iat": _agora(),
         "exp": _agora() + timedelta(minutes=minutos),
-    }
-    return jwt.encode(payload, config.JWT_SECRET, algorithm=config.JWT_ALGORITMO)
-
-
-def emitir_token_servico(id_agencia: int) -> str:
-    payload = {
-        "sub": f"agencia-{id_agencia}",
-        "tipo": "svc",
-        "iat": _agora(),
-        "exp": _agora() + timedelta(seconds=config.TOKEN_SERVICO_SEGUNDOS),
     }
     return jwt.encode(payload, config.JWT_SECRET, algorithm=config.JWT_ALGORITMO)
 

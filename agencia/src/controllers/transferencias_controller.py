@@ -1,51 +1,38 @@
-"""Controller de transferências (Parte D) e idempotência (funcionalidade
-adicional).
+"""Controller de transferências (Parte D do Sprint 1, mensageria no Sprint 2) e
+idempotência (funcionalidade adicional do Sprint 1).
 
-Aqui ficam a transferência local, a transferência entre agências, a falha conhecida
-(o débito não é estornado quando dá erro) e a idempotência dos dois lados:
+A transferência local continua igual. Na transferência entre agências, o Sprint 1
+chamava a outra agência por REST. Agora a origem debita, publica um evento na
+exchange do RabbitMQ e responde. Quem aplica o crédito é a agência de destino, de
+forma assíncrona, quando consumir a mensagem (ver creditos_consumer.py).
 
-- o cliente manda um cabeçalho `Idempotency-Key` único por operação;
-- na origem, a chave garante que um reenvio não aplique um segundo débito;
-- a chave vai junto para a agência de destino (creditar-remoto), que a usa para
-  não aplicar um segundo crédito. Assim o retry de rede fica seguro dos dois lados.
+Por isso a resposta 200 significa só "o broker aceitou a mensagem". Se a
+publicação falhar, o débito é estornado e a resposta é 503.
 
-A regra é: para a mesma chave, a transferência acontece no máximo uma vez. Isso não
-resolve a atomicidade da falha conhecida (o débito continua sem estorno automático,
-o que é assunto da Sprint 4), só impede a duplicação.
+A idempotência segue valendo: o cliente manda um cabeçalho `Idempotency-Key`, e a
+chave vira o `messageId` da mensagem. Um reenvio com a mesma chave não debita nem
+publica de novo, e o consumidor ignora um `messageId` já creditado.
 """
+import uuid
 from typing import Annotated
 
 from fastapi import Header, HTTPException, Request
 
 from .. import config
-from ..models import CreditarRemotoIn, TransferenciaIn, centavos_para_reais, reais_para_centavos
-from ..security import TokenServico, UsuarioAutenticado, garantir_posse
-from ..services import auth_service
+from ..models import TransferenciaIn, reais_para_centavos
+from ..security import UsuarioAutenticado, garantir_posse
 from ..services.idempotencia import Idempotencia
+from ..services.mensageria import FalhaPublicacao, routing_key_creditar
 
 ChaveIdempotencia = Annotated[str | None, Header(alias="Idempotency-Key")]
 
 
-async def _creditar_remoto_em(estado, id_destino: int, valor: float, vetor_envio: list[int], chave: str | None):
-    """Chama a agência de destino. Devolve (ok: bool, erro: str | None)."""
-    agencia_destino = config.agencia_responsavel(id_destino)
-    url_destino = config.url_agencia(agencia_destino)
-    token_servico = auth_service.emitir_token_servico(estado.id_agencia)
-    cabecalhos = {"Authorization": f"Bearer {token_servico}"}
-    if chave:
-        cabecalhos["Idempotency-Key"] = chave
-    try:
-        async with estado.criar_http_client() as client:
-            resposta = await client.post(
-                f"{url_destino}/contas/{id_destino}/creditar-remoto",
-                json={"valor": valor, "vetorEnvio": vetor_envio, "origemAgencia": estado.id_agencia},
-                headers=cabecalhos,
-                timeout=5.0,
-            )
-            resposta.raise_for_status()
-        return True, None
-    except Exception as erro:  # noqa: BLE001
-        return False, str(erro)
+def _estornar(estado, origem: dict, valor_centavos: int, detalhes: dict, motivo: str) -> None:
+    """Desfaz o débito local e deixa o estorno registrado no log."""
+    origem["saldo_centavos"] += valor_centavos
+    estado.registro.registrar(
+        "TRANSFERENCIA_ESTORNADA", estado.relogio.evento_local(), {**detalhes, "motivo": motivo}
+    )
 
 
 async def transferir(
@@ -69,22 +56,10 @@ async def transferir(
                     {"idempotencyKey": idempotency_key},
                 )
                 return registro["resposta"]
-            if registro["status"] == Idempotencia.FALHOU:
-                # Recuperação: não debita de novo, só tenta o crédito remoto outra vez.
-                ctx = registro["contexto"]
-                vetor_envio = estado.relogio.ao_enviar()
-                ok, erro = await _creditar_remoto_em(estado, ctx["idDestino"], ctx["valor"], vetor_envio, idempotency_key)
-                if ok:
-                    resposta = {"mensagem": "Transferência concluída (entre agências, recuperada via idempotência)."}
-                    store.concluir(idempotency_key, resposta)
-                    return resposta
-                estado.registro.registrar(
-                    "TRANSFERENCIA_FALHOU", estado.relogio.evento_local(),
-                    {"idOrigem": ctx["idOrigem"], "idDestino": ctx["idDestino"], "valor": ctx["valor"], "erro": erro},
-                )
-                raise HTTPException(status_code=502, detail="Falha ao contatar agência de destino (retry).")
 
     # Validações. Elas dão sempre o mesmo resultado, então não precisam ser guardadas.
+    if body.idOrigem == body.idDestino:
+        raise HTTPException(status_code=400, detail="Origem e destino devem ser contas diferentes.")
     origem = estado.contas.obter(body.idOrigem)
     if origem is None:
         raise HTTPException(status_code=404, detail="Conta de origem não encontrada nesta agência.")
@@ -94,88 +69,61 @@ async def transferir(
     if origem["saldo_centavos"] < valor_centavos:
         raise HTTPException(status_code=400, detail="Saldo insuficiente.")
 
-    agencia_destino = config.agencia_responsavel(body.idDestino)
+    message_id = idempotency_key or str(uuid.uuid4())
     if idempotency_key:
         store.marcar_em_andamento(idempotency_key)
+    try:
+        resposta = await _executar(estado, body, origem, valor_centavos, message_id)
+    except BaseException:
+        # Nada foi concluído: libera a chave para o cliente poder tentar de novo.
+        if idempotency_key:
+            store.remover(idempotency_key)
+        raise
+    if idempotency_key:
+        store.concluir(idempotency_key, resposta)
+    return resposta
+
+
+async def _executar(estado, body: TransferenciaIn, origem: dict, valor_centavos: int, message_id: str) -> dict:
+    detalhes = {
+        "idOrigem": body.idOrigem, "idDestino": body.idDestino, "valor": body.valor, "messageId": message_id,
+    }
+    agencia_destino = config.agencia_responsavel(body.idDestino)
 
     # Débito local (acontece sempre)
     vetor_debito = estado.relogio.evento_local()
     origem["saldo_centavos"] -= valor_centavos
-    estado.registro.registrar(
-        "TRANSFERENCIA_DEBITO", vetor_debito,
-        {"idOrigem": body.idOrigem, "idDestino": body.idDestino, "valor": body.valor},
-    )
+    estado.registro.registrar("TRANSFERENCIA_DEBITO", vetor_debito, detalhes)
 
-    # Crédito
+    # Crédito na mesma agência
     if agencia_destino == estado.id_agencia:
         destino = estado.contas.obter(body.idDestino)
         if destino is None:
-            origem["saldo_centavos"] += valor_centavos  # desfaz o débito local
-            if idempotency_key:
-                store.remover(idempotency_key)  # como nada aconteceu, deixa tentar de novo
+            _estornar(estado, origem, valor_centavos, detalhes, "conta de destino nao encontrada")
             raise HTTPException(status_code=404, detail="Conta de destino não encontrada.")
         vetor_credito = estado.relogio.evento_local()
         destino["saldo_centavos"] += valor_centavos
-        estado.registro.registrar(
-            "TRANSFERENCIA_CREDITO", vetor_credito,
-            {"idOrigem": body.idOrigem, "idDestino": body.idDestino, "valor": body.valor},
-        )
-        resposta = {"mensagem": "Transferência concluída (mesma agência)."}
-        if idempotency_key:
-            store.concluir(idempotency_key, resposta)
-        return resposta
+        estado.registro.registrar("TRANSFERENCIA_CREDITO", vetor_credito, detalhes)
+        return {"mensagem": "Transferência concluída (mesma agência)."}
 
-    # Entre agências
+    # Entre agências: publica o evento e deixa o destino consumir quando puder.
     vetor_envio = estado.relogio.ao_enviar()
-    ok, erro = await _creditar_remoto_em(estado, body.idDestino, body.valor, vetor_envio, idempotency_key)
-    if ok:
-        resposta = {"mensagem": "Transferência concluída (entre agências)."}
-        if idempotency_key:
-            store.concluir(idempotency_key, resposta)
-        return resposta
-
-    # Falha conhecida: o débito já foi aplicado e não é estornado.
-    estado.registro.registrar(
-        "TRANSFERENCIA_FALHOU", estado.relogio.evento_local(),
-        {"idOrigem": body.idOrigem, "idDestino": body.idDestino, "valor": body.valor, "erro": erro},
-    )
-    if idempotency_key:
-        store.falhar(idempotency_key, {"idOrigem": body.idOrigem, "idDestino": body.idDestino, "valor": body.valor})
-    raise HTTPException(
-        status_code=502,
-        detail="Falha ao contatar agência de destino. Débito já aplicado - inconsistência conhecida (ver Sprint 4).",
-    )
-
-
-async def creditar_remoto(
-    request: Request,
-    id: int,
-    body: CreditarRemotoIn,
-    _servico: TokenServico,
-    idempotency_key: ChaveIdempotencia = None,
-) -> dict:
-    estado = request.app.state
-    store: Idempotencia = estado.idempotencia
-
-    # Checagem no destino: se essa chave já foi creditada, não credita de novo.
-    if idempotency_key:
-        registro = store.obter(idempotency_key)
-        if registro is not None and registro["status"] == Idempotencia.CONCLUIDA:
-            return registro["resposta"]
-
-    # Ao receber, atualiza o relógio vetorial (regra 3).
-    ts = estado.relogio.ao_receber(body.vetorEnvio)
-
-    conta = estado.contas.obter(id)
-    if conta is None:
-        raise HTTPException(status_code=404, detail="Conta não encontrada nesta agência.")
-
-    conta["saldo_centavos"] += reais_para_centavos(body.valor)
-    estado.registro.registrar(
-        "TRANSFERENCIA_CREDITO_REMOTO", ts,
-        {"idConta": id, "valor": body.valor, "origemAgencia": body.origemAgencia},
-    )
-    resposta = {"mensagem": "Crédito remoto aplicado.", "saldoAtual": centavos_para_reais(conta["saldo_centavos"])}
-    if idempotency_key:
-        store.concluir(idempotency_key, resposta)
-    return resposta
+    mensagem = {
+        "messageId": message_id,
+        "idConta": body.idDestino,
+        "valorCentavos": valor_centavos,
+        "vetorEnvio": vetor_envio,
+        "origemAgencia": estado.id_agencia,
+        "idOrigem": body.idOrigem,
+        "idDestino": body.idDestino,
+    }
+    try:
+        await estado.broker.publicar(routing_key_creditar(agencia_destino), mensagem, message_id)
+    except FalhaPublicacao as erro:
+        _estornar(estado, origem, valor_centavos, detalhes, f"falha ao publicar: {erro}")
+        raise HTTPException(
+            status_code=503,
+            detail="Broker indisponível. A transferência não foi realizada e o débito foi estornado.",
+        ) from erro
+    estado.registro.registrar("TRANSFERENCIA_PUBLICADA", vetor_envio, {**detalhes, "agenciaDestino": agencia_destino})
+    return {"mensagem": "Transferência publicada para a agência de destino (entrega assíncrona)."}

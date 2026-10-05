@@ -40,13 +40,6 @@ class TransferenciaIn(BaseModel):
     valor: float = Field(..., gt=0, description="Valor da transferência em reais")
 
 
-class CreditarRemotoIn(BaseModel):
-    """Corpo da chamada interna entre agências (creditar-remoto)."""
-    valor: float = Field(..., gt=0)
-    vetorEnvio: list[int]
-    origemAgencia: int
-
-
 class LoginIn(BaseModel):
     usuario: str
     senha: str

@@ -33,6 +33,3 @@ def registrar_rotas(app: FastAPI) -> None:
 
     # Transferências (Parte D)
     app.add_api_route("/transferencias", transferencias_controller.transferir, methods=["POST"])
-    app.add_api_route(
-        "/contas/{id}/creditar-remoto", transferencias_controller.creditar_remoto, methods=["POST"]
-    )

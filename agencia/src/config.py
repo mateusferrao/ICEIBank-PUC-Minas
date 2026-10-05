@@ -52,10 +52,8 @@ def url_agencia(id_agencia: int) -> str:
 JWT_SECRET = os.environ.get("JWT_SECRET", "iceibank-sprint1-segredo-compartilhado")
 JWT_ALGORITMO = "HS256"
 
-# Expiração do token de usuário (em minutos) e do token de serviço (em segundos,
-# curto porque ele é gerado a cada chamada entre agências).
+# Expiração do token de usuário (em minutos).
 TOKEN_USUARIO_MINUTOS = int(os.environ.get("TOKEN_USUARIO_MINUTOS", "30"))
-TOKEN_SERVICO_SEGUNDOS = int(os.environ.get("TOKEN_SERVICO_SEGUNDOS", "60"))
 
 # Uso Argon2id como único algoritmo de hash de senha (é o que o FastAPI/pwdlib
 # recomenda hoje, resistente a ataque com GPU). Coloco ele direto, sem bcrypt,
