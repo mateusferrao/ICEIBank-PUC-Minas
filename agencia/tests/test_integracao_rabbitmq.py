@@ -13,6 +13,7 @@ import pytest
 import src.main  # noqa: F401  (carrega o .env, se existir)
 from src.services.mensageria import (
     EXCHANGE,
+    CreditoRejeitado,
     AioPikaBroker,
     nome_dlq,
     nome_fila,
@@ -27,7 +28,7 @@ def test_publica_e_consome_pela_exchange_real():
         recebidas: list[dict] = []
         chegou = asyncio.Event()
 
-        async def handler(mensagem: dict) -> None:
+        async def handler(mensagem: dict, tentativa: int = 0) -> None:
             recebidas.append(mensagem)
             chegou.set()
 
@@ -45,6 +46,33 @@ def test_publica_e_consome_pela_exchange_real():
             await broker.publicar(routing_key_creditar(2), {"messageId": message_id, "teste": True}, message_id)
             await asyncio.wait_for(chegou.wait(), timeout=15)
             assert recebidas[0]["messageId"] == message_id
+        finally:
+            await broker.fechar()
+
+    asyncio.run(cenario())
+
+
+def test_mensagem_rejeitada_vai_para_a_dlq_real():
+    async def cenario():
+        async def handler(mensagem: dict, tentativa: int = 0) -> None:
+            raise CreditoRejeitado("teste de dlq", permanente=True)
+
+        broker = AioPikaBroker()
+        await broker.iniciar(2, handler)
+        try:
+            message_id = str(uuid.uuid4())
+            await broker.publicar(routing_key_creditar(2), {"messageId": message_id}, message_id)
+            dlq = await broker._canal.declare_queue(nome_dlq(2), passive=True)
+            # esvazia a DLQ até achar a mensagem deste teste (e limpa as demais)
+            for _ in range(30):
+                recebida = await dlq.get(fail=False, timeout=5)
+                if recebida is None:
+                    await asyncio.sleep(0.5)
+                    continue
+                await recebida.ack()
+                if recebida.message_id == message_id:
+                    return
+            raise AssertionError("mensagem não chegou à DLQ")
         finally:
             await broker.fechar()
 

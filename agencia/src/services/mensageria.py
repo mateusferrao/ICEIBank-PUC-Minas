@@ -20,6 +20,7 @@ precisa de lock.
 A URL do broker vem da variável de ambiente RABBITMQ_URL e só é lida quando a
 agência conecta (`iniciar`), nunca ao importar o módulo.
 """
+import asyncio
 import json
 import os
 from typing import Awaitable, Callable, Protocol
@@ -31,11 +32,49 @@ from .. import config
 EXCHANGE = "iceibank.eventos"
 DLX = "iceibank.dlx"
 
-Handler = Callable[[dict], Awaitable[None]]
+# O handler recebe a mensagem e o número da tentativa (0 na primeira entrega).
+Handler = Callable[[dict, int], Awaitable[None]]
+
+# Funcionalidade adicional (DLQ): tentativas antes de mandar para a fila de mortas.
+MAX_TENTATIVAS = 3
+ESPERA_ENTRE_TENTATIVAS = float(os.environ.get("RETRY_ESPERA_SEGUNDOS", "1"))
 
 
 class FalhaPublicacao(Exception):
     """O broker não aceitou a mensagem (fora do ar, sem rota ou timeout)."""
+
+
+class CreditoRejeitado(Exception):
+    """O consumidor não conseguiu aplicar o crédito (ex.: conta não encontrada).
+
+    `permanente=True` indica que repetir não adianta (ex.: a conta não pertence a
+    esta agência), e a mensagem vai direto para a DLQ."""
+
+    def __init__(self, motivo: str, permanente: bool = False) -> None:
+        super().__init__(motivo)
+        self.motivo = motivo
+        self.permanente = permanente
+
+
+async def processar_com_politica(corpo: dict, tentativas: int, handler: Handler, republicar, enviar_dlq) -> None:
+    """Política de retry + DLQ, compartilhada pelo broker real e pelo de teste.
+
+    - handler OK: nada mais a fazer (a mensagem é confirmada);
+    - CreditoRejeitado: republica com tentativa+1 até MAX_TENTATIVAS, depois DLQ;
+      se for permanente, vai direto para a DLQ;
+    - qualquer outro erro (mensagem inválida): vai direto para a DLQ.
+    """
+    try:
+        await handler(corpo, tentativas)
+        return
+    except CreditoRejeitado as erro:
+        motivo, permanente = erro.motivo, erro.permanente
+    except Exception as erro:  # noqa: BLE001
+        motivo, permanente = f"mensagem invalida: {erro!r}", True
+    if not permanente and tentativas + 1 < MAX_TENTATIVAS:
+        await republicar(tentativas + 1)
+    else:
+        await enviar_dlq(motivo)
 
 
 def routing_key_creditar(id_agencia: int) -> str:
@@ -106,15 +145,35 @@ class AioPikaBroker:
 
     def _criar_callback(self, handler: Handler):
         async def callback(mensagem: aio_pika.abc.AbstractIncomingMessage) -> None:
-            # Por enquanto toda mensagem é confirmada (ack) depois de tratada. O
-            # handler registra no log o que fez, inclusive quando não consegue
-            # aplicar o crédito.
-            async with mensagem.process(ignore_processed=True):
-                try:
-                    corpo = json.loads(mensagem.body.decode("utf-8"))
-                    await handler(corpo)
-                except Exception as erro:  # noqa: BLE001
-                    print(f"[mensageria] mensagem descartada: {erro!r}")
+            tentativas = int((mensagem.headers or {}).get("x-tentativas", 0))
+
+            async def republicar(proxima: int) -> None:
+                # Mesma mensagem, de volta à exchange, com o contador incrementado.
+                await asyncio.sleep(ESPERA_ENTRE_TENTATIVAS)
+                nova = aio_pika.Message(
+                    body=mensagem.body,
+                    content_type=mensagem.content_type,
+                    delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+                    message_id=mensagem.message_id,
+                    headers={"x-tentativas": proxima},
+                )
+                await self._exchange.publish(nova, routing_key=mensagem.routing_key, mandatory=True)
+                await mensagem.ack()
+
+            async def enviar_dlq(motivo: str) -> None:
+                print(f"[mensageria] {mensagem.message_id} vai para a DLQ: {motivo}")
+                # nack sem requeue: o broker encaminha para a DLX da fila (iceibank.dlx)
+                # e a mensagem fica em fila-agencia-N.dlq.
+                await mensagem.nack(requeue=False)
+
+            try:
+                corpo = json.loads(mensagem.body.decode("utf-8"))
+            except ValueError:
+                await enviar_dlq("mensagem invalida: JSON malformado")
+                return
+            await processar_com_politica(corpo, tentativas, handler, republicar, enviar_dlq)
+            if not mensagem.processed:
+                await mensagem.ack()
 
         return callback
 

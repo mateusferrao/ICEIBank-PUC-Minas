@@ -156,7 +156,7 @@ def test_consumidor_recusa_conta_de_outra_agencia(rede):
         "vetorEnvio": [1, 0, 0], "origemAgencia": 0, "idOrigem": 3, "idDestino": 0,
     }  # conta 0 pertence à agência 0, não à 1
 
-    asyncio.run(a1.app.state.handler_credito(mensagem))
+    asyncio.run(rede.bus.entregar(1, mensagem))
 
     falha = next(e for e in _eventos(a1) if e["tipo"] == "CREDITO_REMOTO_FALHOU")
     assert falha["detalhes"]["motivo"] == "conta nao pertence a esta agencia"
