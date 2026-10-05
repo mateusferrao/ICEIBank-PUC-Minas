@@ -43,7 +43,7 @@ class TransferenciaIn(BaseModel):
 class CreditarRemotoIn(BaseModel):
     """Corpo da chamada interna entre agências (creditar-remoto)."""
     valor: float = Field(..., gt=0)
-    timestampLamport: int
+    vetorEnvio: list[int]
     origemAgencia: int
 
 

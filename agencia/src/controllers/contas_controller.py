@@ -1,6 +1,6 @@
 """Controller de contas (Parte C): criar, consultar, depositar, sacar.
 
-Toda operação que muda o estado ganha um timestamp do relógio de Lamport e é
+Toda operação que muda o estado ganha um timestamp do relógio vetorial e é
 gravada no event log. As contas ficam em memória (no ContaRepository dentro do
 app.state).
 

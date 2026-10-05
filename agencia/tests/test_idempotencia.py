@@ -40,7 +40,7 @@ def test_chave_diferente_aplica_de_novo(cliente):
 def test_credito_remoto_dedup_no_destino(cliente):
     cliente.post("/contas", json={"id": 0, "saldoInicial": 0})
     token_svc = auth_service.emitir_token_servico(1)
-    corpo = {"valor": 25, "timestampLamport": 1, "origemAgencia": 1}
+    corpo = {"valor": 25, "vetorEnvio": [0, 1, 0], "origemAgencia": 1}
     headers = {"Authorization": f"Bearer {token_svc}", "Idempotency-Key": "credito-1"}
 
     cliente.post("/contas/0/creditar-remoto", json=corpo, headers=headers)

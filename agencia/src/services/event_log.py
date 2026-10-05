@@ -4,7 +4,8 @@ Cada agência grava cada evento numa linha JSON (`eventos-<agencia>.jsonl`). Ess
 arquivos são a base da linha do tempo unificada (mesclar_logs.py).
 
 Cada evento guarda dois tempos:
-- timestampLamport: o relógio lógico, usado para ordenar a linha do tempo;
+- timestampVetorial: o relógio vetorial, usado para ordenar a linha do tempo e
+  descobrir quais eventos são concorrentes;
 - horaParede: o relógio físico da máquina, só para comparação. Ele nunca é usado
   para nenhuma decisão do sistema.
 """
@@ -23,11 +24,11 @@ class RegistroEventos:
         self.caminho_arquivo = os.path.join(_DIR_DADOS, f"eventos-{nome_agencia}.jsonl")
         self._lock = threading.Lock()
 
-    def registrar(self, tipo: str, timestamp_lamport: int, detalhes: dict) -> dict:
+    def registrar(self, tipo: str, timestamp_vetorial: list[int], detalhes: dict) -> dict:
         evento = {
             "agencia": self.nome_agencia,
             "tipo": tipo,
-            "timestampLamport": timestamp_lamport,
+            "timestampVetorial": timestamp_vetorial,
             "horaParede": datetime.now(timezone.utc).isoformat(),
             "detalhes": detalhes,
         }
@@ -35,7 +36,7 @@ class RegistroEventos:
         with self._lock:
             with open(self.caminho_arquivo, "a", encoding="utf-8") as arquivo:
                 arquivo.write(linha)
-        print(f"[Lamport {timestamp_lamport}] {tipo} {detalhes}")
+        print(f"[Vetor {timestamp_vetorial}] {tipo} {detalhes}")
         return evento
 
     def ler_eventos(self) -> list[dict]:

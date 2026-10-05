@@ -9,11 +9,11 @@ from .controllers import auth_controller, contas_controller, transferencias_cont
 
 
 async def health(request: Request) -> dict:
-    """Status da agência: valor atual do relógio de Lamport e quantidade de contas."""
+    """Status da agência: vetor atual do relógio vetorial e quantidade de contas."""
     estado = request.app.state
     return {
         "agencia": estado.id_agencia,
-        "lamport": estado.relogio.contador,
+        "vetor": estado.relogio.atual(),
         "contas": estado.contas.quantidade(),
     }
 

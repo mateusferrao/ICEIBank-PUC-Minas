@@ -46,7 +46,7 @@ def test_creditar_remoto_rejeita_token_de_usuario(cliente):
     # cliente está com token de USUÁRIO (ana); creditar-remoto exige token de serviço
     r = cliente.post(
         "/contas/0/creditar-remoto",
-        json={"valor": 10, "timestampLamport": 1, "origemAgencia": 1},
+        json={"valor": 10, "vetorEnvio": [0, 1, 0], "origemAgencia": 1},
     )
     assert r.status_code == 401
 
@@ -56,7 +56,7 @@ def test_creditar_remoto_aceita_token_de_servico(cliente):
     token_svc = auth_service.emitir_token_servico(1)
     r = cliente.post(
         "/contas/0/creditar-remoto",
-        json={"valor": 10, "timestampLamport": 1, "origemAgencia": 1},
+        json={"valor": 10, "vetorEnvio": [0, 1, 0], "origemAgencia": 1},
         headers={"Authorization": f"Bearer {token_svc}"},
     )
     assert r.status_code == 200

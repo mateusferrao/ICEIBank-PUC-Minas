@@ -1,7 +1,7 @@
 """Ponto de entrada da agência (app factory).
 
 O mesmo código roda 3 vezes, identificado pela variável de ambiente AGENCIA_ID.
-Cada processo mantém seu próprio estado em memória (contas, relógio de Lamport,
+Cada processo mantém seu próprio estado em memória (contas, relógio vetorial,
 registro de eventos), guardado em `app.state`.
 
 Executar:
@@ -21,7 +21,7 @@ from .routes import registrar_rotas
 from .services.conta_repository import ContaRepository
 from .services.event_log import RegistroEventos
 from .services.idempotencia import Idempotencia
-from .services.lamport import RelogioLamport
+from .services.vetorial import RelogioVetorial
 
 
 def criar_app(id_agencia: int | None = None) -> FastAPI:
@@ -49,7 +49,7 @@ def criar_app(id_agencia: int | None = None) -> FastAPI:
 
     # Estado por processo (em memória).
     app.state.id_agencia = id_agencia
-    app.state.relogio = RelogioLamport()
+    app.state.relogio = RelogioVetorial(id_agencia, config.NUMERO_AGENCIAS)
     app.state.registro = RegistroEventos(f"agencia-{id_agencia}")
     app.state.contas = ContaRepository()
     app.state.idempotencia = Idempotencia()

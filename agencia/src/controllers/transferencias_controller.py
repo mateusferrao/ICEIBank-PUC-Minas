@@ -26,7 +26,7 @@ from ..services.idempotencia import Idempotencia
 ChaveIdempotencia = Annotated[str | None, Header(alias="Idempotency-Key")]
 
 
-async def _creditar_remoto_em(estado, id_destino: int, valor: float, ts_envio: int, chave: str | None):
+async def _creditar_remoto_em(estado, id_destino: int, valor: float, vetor_envio: list[int], chave: str | None):
     """Chama a agência de destino. Devolve (ok: bool, erro: str | None)."""
     agencia_destino = config.agencia_responsavel(id_destino)
     url_destino = config.url_agencia(agencia_destino)
@@ -38,7 +38,7 @@ async def _creditar_remoto_em(estado, id_destino: int, valor: float, ts_envio: i
         async with estado.criar_http_client() as client:
             resposta = await client.post(
                 f"{url_destino}/contas/{id_destino}/creditar-remoto",
-                json={"valor": valor, "timestampLamport": ts_envio, "origemAgencia": estado.id_agencia},
+                json={"valor": valor, "vetorEnvio": vetor_envio, "origemAgencia": estado.id_agencia},
                 headers=cabecalhos,
                 timeout=5.0,
             )
@@ -72,8 +72,8 @@ async def transferir(
             if registro["status"] == Idempotencia.FALHOU:
                 # Recuperação: não debita de novo, só tenta o crédito remoto outra vez.
                 ctx = registro["contexto"]
-                ts_envio = estado.relogio.ao_enviar()
-                ok, erro = await _creditar_remoto_em(estado, ctx["idDestino"], ctx["valor"], ts_envio, idempotency_key)
+                vetor_envio = estado.relogio.ao_enviar()
+                ok, erro = await _creditar_remoto_em(estado, ctx["idDestino"], ctx["valor"], vetor_envio, idempotency_key)
                 if ok:
                     resposta = {"mensagem": "Transferência concluída (entre agências, recuperada via idempotência)."}
                     store.concluir(idempotency_key, resposta)
@@ -99,10 +99,10 @@ async def transferir(
         store.marcar_em_andamento(idempotency_key)
 
     # Débito local (acontece sempre)
-    ts_debito = estado.relogio.evento_local()
+    vetor_debito = estado.relogio.evento_local()
     origem["saldo_centavos"] -= valor_centavos
     estado.registro.registrar(
-        "TRANSFERENCIA_DEBITO", ts_debito,
+        "TRANSFERENCIA_DEBITO", vetor_debito,
         {"idOrigem": body.idOrigem, "idDestino": body.idDestino, "valor": body.valor},
     )
 
@@ -114,10 +114,10 @@ async def transferir(
             if idempotency_key:
                 store.remover(idempotency_key)  # como nada aconteceu, deixa tentar de novo
             raise HTTPException(status_code=404, detail="Conta de destino não encontrada.")
-        ts_credito = estado.relogio.evento_local()
+        vetor_credito = estado.relogio.evento_local()
         destino["saldo_centavos"] += valor_centavos
         estado.registro.registrar(
-            "TRANSFERENCIA_CREDITO", ts_credito,
+            "TRANSFERENCIA_CREDITO", vetor_credito,
             {"idOrigem": body.idOrigem, "idDestino": body.idDestino, "valor": body.valor},
         )
         resposta = {"mensagem": "Transferência concluída (mesma agência)."}
@@ -126,8 +126,8 @@ async def transferir(
         return resposta
 
     # Entre agências
-    ts_envio = estado.relogio.ao_enviar()
-    ok, erro = await _creditar_remoto_em(estado, body.idDestino, body.valor, ts_envio, idempotency_key)
+    vetor_envio = estado.relogio.ao_enviar()
+    ok, erro = await _creditar_remoto_em(estado, body.idDestino, body.valor, vetor_envio, idempotency_key)
     if ok:
         resposta = {"mensagem": "Transferência concluída (entre agências)."}
         if idempotency_key:
@@ -163,8 +163,8 @@ async def creditar_remoto(
         if registro is not None and registro["status"] == Idempotencia.CONCLUIDA:
             return registro["resposta"]
 
-    # Ao receber, ajusta o relógio de Lamport (regra 3).
-    ts = estado.relogio.ao_receber(body.timestampLamport)
+    # Ao receber, atualiza o relógio vetorial (regra 3).
+    ts = estado.relogio.ao_receber(body.vetorEnvio)
 
     conta = estado.contas.obter(id)
     if conta is None:

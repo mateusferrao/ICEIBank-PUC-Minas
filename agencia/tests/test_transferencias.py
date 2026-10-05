@@ -50,17 +50,19 @@ def test_transferencia_entre_agencias(app_agencia):
     assert destino.get("/contas/1").json()["saldo"] == 30.0
 
 
-def test_credito_remoto_aplica_regra_de_recebimento_do_lamport(app_agencia):
+def test_credito_remoto_aplica_regra_de_recebimento_do_vetorial(app_agencia):
     origem = app_agencia(0)
     destino = app_agencia(1)
     _ligar_agencias(origem, destino)
     origem.post("/contas", json={"id": 0, "saldoInicial": 100})
     destino.post("/contas", json={"id": 1, "saldoInicial": 0})
 
-    lamport_destino_antes = destino.get("/health").json()["lamport"]
+    vetor_destino_antes = destino.get("/health").json()["vetor"]
     origem.post("/transferencias", json={"idOrigem": 0, "idDestino": 1, "valor": 10})
     # o destino avançou o relógio ao receber (ao_receber = max+1)
-    assert destino.get("/health").json()["lamport"] > lamport_destino_antes
+    vetor_depois = destino.get("/health").json()["vetor"]
+    assert vetor_depois[1] > vetor_destino_antes[1]
+    assert vetor_depois[0] > vetor_destino_antes[0]  # absorveu a posicao da origem
 
 
 def test_falha_conhecida_nao_reverte_debito(app_agencia):

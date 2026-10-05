@@ -28,7 +28,7 @@ def mesclar(pasta_dados: str = _DIR_DADOS) -> list[dict]:
                 linha = linha.strip()
                 if linha:
                     eventos.append(json.loads(linha))
-    eventos.sort(key=lambda e: e["timestampLamport"])
+    eventos.sort(key=lambda e: (sum(e["timestampVetorial"]), e["horaParede"], e["agencia"]))
     return eventos
 
 
@@ -37,10 +37,10 @@ def main() -> None:
     if not eventos:
         print("Nenhum evento encontrado em data/. Rode as agências e gere operações primeiro.")
         sys.exit(0)
-    print("=== Linha do tempo unificada (ordenada por relogio de Lamport) ===")
+    print("=== Linha do tempo unificada (ordenada por relogio vetorial) ===")
     for evento in eventos:
         print(
-            f"[Lamport {evento['timestampLamport']}] ({evento['horaParede']}) "
+            f"[Vetor {evento['timestampVetorial']}] ({evento['horaParede']}) "
             f"{evento['agencia']} - {evento['tipo']} {json.dumps(evento['detalhes'], ensure_ascii=False)}"
         )
 
