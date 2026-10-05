@@ -15,6 +15,7 @@ param([switch]$SemPausas)
 
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $PY = ".\.venv\Scripts\python.exe"
 
 if (-not $env:RABBITMQ_URL) {
@@ -47,15 +48,23 @@ function Derrubar-Agencia($id) {
   taskkill /PID $janelas[$id].Id /T /F | Out-Null
 }
 
+# O FastAPI responde JSON em UTF-8 sem declarar o charset, e o Invoke-RestMethod do
+# Windows PowerShell 5.1 leria como ISO-8859-1 (acentos quebrados). Por isso decodifico
+# o corpo da resposta como UTF-8 na mao.
+function Req($metodo, $url, $headers = @{}, $corpo = $null) {
+  $p = @{ Uri = $url; Method = $metodo; Headers = $headers; UseBasicParsing = $true }
+  if ($corpo) { $p.Body = [System.Text.Encoding]::UTF8.GetBytes($corpo); $p.ContentType = "application/json" }
+  $r = Invoke-WebRequest @p
+  return [System.Text.Encoding]::UTF8.GetString($r.RawContentStream.ToArray()) | ConvertFrom-Json
+}
+
 function Login($id, $usuario, $senha) {
-  $r = Invoke-RestMethod -Uri "http://localhost:$(4000 + $id)/auth/login" -Method Post -ContentType "application/json" `
-    -Body (@{ usuario = $usuario; senha = $senha } | ConvertTo-Json)
+  $r = Req Post "http://localhost:$(4000 + $id)/auth/login" @{} (@{ usuario = $usuario; senha = $senha } | ConvertTo-Json)
   return @{ Authorization = "Bearer $($r.token)" }
 }
 
 function Post($id, $caminho, $corpo, $headers) {
-  Invoke-RestMethod -Uri "http://localhost:$(4000 + $id)$caminho" -Method Post -Headers $headers `
-    -ContentType "application/json" -Body $corpo
+  Req Post "http://localhost:$(4000 + $id)$caminho" $headers $corpo
 }
 
 function Ultimos-Eventos($id, $n) {
@@ -85,12 +94,12 @@ try {
   Post 0 "/transferencias" '{"idOrigem":0,"idDestino":1,"valor":30}' $H[0]
   Start-Sleep -Seconds 2
   Write-Host "`nSaldo da conta 1 (ag1) apos consumir a mensagem:"
-  Invoke-RestMethod "http://localhost:4001/contas/1" -Headers $H[1]
+  Req Get "http://localhost:4001/contas/1" $H[1]
   Write-Host "`nEventos da agencia 0 (origem):"
   Ultimos-Eventos 0 3
   Write-Host "`nEventos da agencia 1 (destino):"
   Ultimos-Eventos 1 2
-  Write-Host "`nVetores: ag0 = $((Invoke-RestMethod http://localhost:4000/health).vetor -join ',')   ag1 = $((Invoke-RestMethod http://localhost:4001/health).vetor -join ',')"
+  Write-Host "`nVetores: ag0 = $((Req Get http://localhost:4000/health).vetor -join ',')   ag1 = $((Req Get http://localhost:4001/health).vetor -join ',')"
   Pausa "PRINT 1 -> evidencias\sprint2\transferencia-assincrona.png  (este terminal + as janelas 'Agencia 0' e 'Agencia 1' visiveis)"
 
   # ---------------------------------------------------------------- PRINT 2
@@ -107,7 +116,7 @@ try {
   Write-Host "`nO que a agencia 1 registrou ao consumir a fila:"
   Ultimos-Eventos 1 5
   Write-Host "`nSaldo da conta 0 (ag0) - o debito continua aplicado:"
-  Invoke-RestMethod "http://localhost:4000/contas/0" -Headers $H[0]
+  Req Get "http://localhost:4000/contas/0" $H[0]
   Pausa "PRINT 2 -> evidencias\sprint2\resiliencia-fila.png  (este terminal + a janela 'Agencia 1' com o log das tentativas)"
 
   # ---------------------------------------------------------------- PRINT 4

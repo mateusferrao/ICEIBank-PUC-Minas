@@ -1,3 +1,10 @@
+# ICEIBank
+
+> **Estado atual: Sprint 2** (mensageria com RabbitMQ e relógio vetorial). Como
+> executar, decisões de design, respostas às perguntas e as dívidas conhecidas estão
+> em [`RESPOSTAS.md`](RESPOSTAS.md). Evidências em `evidencias/`. O texto abaixo é o
+> enunciado do Sprint 1, mantido como referência.
+
 1. Visão geral do projeto: ICEIBank
 Este é o primeiro de 4 sprints de um único projeto que evolui ao longo do semestre - cada sprint parte do código do anterior, não recomeça do zero. A aplicação é o ICEIBank, um banco simplificado dividido em agências: cada agência é uma partição independente de contas, e o sistema evolui conforme a ementa avança:
 Sprint	Unidade da ementa	Tecnologia	Conceito de Sistemas Distribuídos aplicado

@@ -1,3 +1,5 @@
+> **Nota:** este roteiro de vídeo é do Sprint 1 (Lamport e chamada REST entre agências). O roteiro do Sprint 2 não pede vídeo; as evidências do Sprint 2 estão em `evidencias/sprint2/`.
+
 # Roteiro do vídeo - ICEIBank Sprint 1
 
 Este roteiro é para você seguir do lado enquanto grava. Cada cena tem três partes:
