@@ -26,6 +26,10 @@ from ..services.idempotencia import Idempotencia
 from ..services.mensageria import MAX_TENTATIVAS, CreditoRejeitado
 
 
+def _inteiro(valor) -> bool:
+    return isinstance(valor, int) and not isinstance(valor, bool)
+
+
 def criar_handler(app: FastAPI):
     def _rejeitar(estado, vetor, detalhes, tentativa, motivo, permanente=False):
         detalhes = {**detalhes, "motivo": motivo, "tentativa": tentativa + 1}
@@ -39,13 +43,24 @@ def criar_handler(app: FastAPI):
         id_conta = mensagem["idConta"]
         centavos = mensagem["valorCentavos"]
         message_id = mensagem["messageId"]
-        vetor = estado.relogio.ao_receber(mensagem["vetorEnvio"])
         detalhes = {
             "idConta": id_conta,
-            "valor": centavos_para_reais(centavos),
+            "valor": centavos_para_reais(centavos) if _inteiro(centavos) else centavos,
             "origemAgencia": mensagem["origemAgencia"],
             "messageId": message_id,
         }
+        vetor_recebido = mensagem["vetorEnvio"]
+        # Quem publica na exchange não passa por JWT, então o conteúdo é validado aqui.
+        if (
+            not isinstance(vetor_recebido, list)
+            or len(vetor_recebido) != config.NUMERO_AGENCIAS
+            or not all(_inteiro(x) and x >= 0 for x in vetor_recebido)
+        ):
+            vetor = estado.relogio.evento_local()  # nao da para confiar no vetor recebido
+            _rejeitar(estado, vetor, detalhes, tentativa, "vetor invalido", permanente=True)
+        vetor = estado.relogio.ao_receber(vetor_recebido)
+        if not _inteiro(centavos) or centavos <= 0:
+            _rejeitar(estado, vetor, detalhes, tentativa, "valor invalido", permanente=True)
 
         chave = f"credito:{message_id}"
         anterior = estado.idempotencia.obter(chave)

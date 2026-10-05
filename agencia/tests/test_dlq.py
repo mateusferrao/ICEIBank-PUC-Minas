@@ -122,3 +122,27 @@ def test_conta_de_outra_agencia_vai_direto_para_a_dlq(rede):
     tipos = [e["tipo"] for e in a1.app.state.registro.ler_eventos()]
     assert tipos == ["CREDITO_REMOTO_FALHOU", "CREDITO_REMOTO_DLQ"]  # sem retry
     assert len(rede.bus.dlq[1]) == 1
+
+
+def test_mensagem_forjada_com_valor_invalido_vai_para_a_dlq_sem_mexer_no_saldo(rede):
+    """Quem publica na exchange não passa por JWT: o consumidor valida o conteúdo."""
+    a1 = rede.subir(1)
+    a1.post("/contas", json={"id": 1, "saldoInicial": 50})
+    base = {"messageId": "forjada", "idConta": 1, "vetorEnvio": [1, 0, 0], "origemAgencia": 0}
+
+    for valor in (-500, 0, "1000", 10.5, True):
+        asyncio.run(rede.bus.entregar(1, {**base, "valorCentavos": valor, "messageId": f"forjada-{valor}"}))
+
+    assert a1.get("/contas/1").json()["saldo"] == 50.0
+    assert len(rede.bus.dlq[1]) == 5
+
+
+def test_mensagem_com_vetor_de_tamanho_errado_vai_para_a_dlq(rede):
+    a1 = rede.subir(1)
+    a1.post("/contas", json={"id": 1, "saldoInicial": 0})
+    msg = {"messageId": "v", "idConta": 1, "valorCentavos": 100, "vetorEnvio": [1], "origemAgencia": 0}
+
+    asyncio.run(rede.bus.entregar(1, msg))
+
+    assert a1.get("/contas/1").json()["saldo"] == 0.0
+    assert len(rede.bus.dlq[1]) == 1
